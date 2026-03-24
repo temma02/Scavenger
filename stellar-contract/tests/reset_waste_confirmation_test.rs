@@ -1,5 +1,5 @@
-use soroban_sdk::symbol_short;
 #![cfg(test)]
+
 
 use soroban_sdk::{testutils::Address as _, Address, Env};
 use stellar_scavngr_contract::{
@@ -44,6 +44,15 @@ fn test_reset_waste_confirmation() {
         &-93_000_000,
     );
 
+    // Register confirmer
+    client.register_participant(
+        &confirmer,
+        &ParticipantRole::Manufacturer,
+        &soroban_sdk::symbol_short!("Conf"),
+        &45_000_000,
+        &-93_000_000,
+    );
+
     // Confirm the waste
     client.confirm_waste_details(&waste_id, &confirmer);
 
@@ -84,6 +93,15 @@ fn test_reset_waste_confirmation_non_owner() {
         &WasteType::Plastic,
         &1000,
         &owner,
+        &45_000_000,
+        &-93_000_000,
+    );
+
+    // Register confirmer
+    client.register_participant(
+        &confirmer,
+        &ParticipantRole::Manufacturer,
+        &soroban_sdk::symbol_short!("Conf"),
         &45_000_000,
         &-93_000_000,
     );

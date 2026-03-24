@@ -1,5 +1,5 @@
-use soroban_sdk::symbol_short;
 #![cfg(test)]
+
 
 use soroban_sdk::{testutils::Address as _, Address, Env};
 use stellar_scavngr_contract::{
@@ -253,6 +253,15 @@ fn test_deactivated_waste_cannot_be_confirmed() {
 
     // Deactivate waste
     client.deactivate_waste(&waste_id, &admin);
+
+    // Register confirmer
+    client.register_participant(
+        &confirmer,
+        &ParticipantRole::Manufacturer,
+        &soroban_sdk::symbol_short!("Conf"),
+        &45_000_000,
+        &-93_000_000,
+    );
 
     // Try to confirm deactivated waste (should panic)
     client.confirm_waste_details(&waste_id, &confirmer);

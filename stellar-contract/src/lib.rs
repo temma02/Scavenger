@@ -154,21 +154,6 @@ impl ScavengerContract {
         }
     }
 
-    // ========== Reentrancy Guard Functions ==========
-
-    /// Acquire reentrancy lock
-    fn lock(env: &Env) {
-        if env.storage().instance().get::<Symbol, bool>(&REENTRANCY_GUARD).unwrap_or(false) {
-            panic!("Reentrancy detected");
-        }
-        env.storage().instance().set(&REENTRANCY_GUARD, &true);
-    }
-
-    /// Release reentrancy lock
-    fn unlock(env: &Env) {
-        env.storage().instance().set(&REENTRANCY_GUARD, &false);
-    }
-
     // ========== Charity Contract Functions ==========
 
     /// Set the charity contract address (admin only)
@@ -382,7 +367,11 @@ impl ScavengerContract {
     /// Check if a participant is registered
     pub fn is_participant_registered(env: Env, address: Address) -> bool {
         let key = (address,);
-        env.storage().instance().has(&key)
+        if let Some(p) = env.storage().instance().get::<_, Participant>(&key) {
+            p.is_registered
+        } else {
+            false
+        }
     }
 
     /// Register a new participant with a specific role
@@ -696,6 +685,7 @@ impl ScavengerContract {
 
         // Require auth from the rewarder
         incentive.rewarder.require_auth();
+        Self::require_registered(&env, &incentive.rewarder);
 
         incentive.active = is_active;
         Self::set_incentive(&env, incentive_id, &incentive);
@@ -718,6 +708,7 @@ impl ScavengerContract {
 
         // Step 2: Authorization check
         incentive.rewarder.require_auth();
+        Self::require_registered(&env, &incentive.rewarder);
 
         // Step 3: Active status check
         if !incentive.active {
@@ -1105,6 +1096,10 @@ impl ScavengerContract {
         // Validate recycler is registered
         Self::only_registered(&env, &recycler);
 
+        if weight == 0 {
+            panic!("Waste weight must be greater than zero");
+        }
+
         let waste_id = Self::next_waste_id(&env) as u128;
         let timestamp = env.ledger().timestamp();
 
@@ -1167,6 +1162,8 @@ impl ScavengerContract {
     ) -> WasteTransfer {
         // Access control check - verify caller owns the waste
         Self::only_waste_owner(&env, &from, waste_id);
+        Self::require_registered(&env, &from);
+        Self::require_registered(&env, &to);
 
         let mut waste: types::Waste = env
             .storage()
@@ -1252,6 +1249,8 @@ impl ScavengerContract {
         notes: soroban_sdk::Symbol,
     ) -> u128 {
         collector.require_auth();
+        Self::require_registered(&env, &collector);
+        Self::require_registered(&env, &manufacturer);
 
         let collector_key = (collector.clone(),);
         let collector_participant: Participant = env
@@ -1337,6 +1336,7 @@ impl ScavengerContract {
     /// Confirm waste details
     pub fn confirm_waste_details(env: Env, waste_id: u128, confirmer: Address) -> types::Waste {
         confirmer.require_auth();
+        Self::require_registered(&env, &confirmer);
 
         let mut waste: types::Waste = env
             .storage()
@@ -1375,6 +1375,7 @@ impl ScavengerContract {
     ) -> types::Waste {
         // Access control check - verify caller owns the waste
         Self::only_waste_owner(&env, &owner, waste_id);
+        Self::require_registered(&env, &owner);
 
         let mut waste: types::Waste = env
             .storage()
@@ -1785,6 +1786,7 @@ impl ScavengerContract {
     /// Deactivate an incentive (only by creator)
     pub fn deactivate_incentive(env: Env, incentive_id: u64, rewarder: Address) -> Incentive {
         rewarder.require_auth();
+        Self::require_registered(&env, &rewarder);
 
         let mut incentive =
             Self::get_incentive_internal(&env, incentive_id).expect("Incentive not found");

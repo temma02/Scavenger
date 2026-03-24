@@ -35,19 +35,18 @@ fn test_zero_token_reward() {
 }
 
 #[test]
+#[should_panic(expected = "Waste weight must be greater than zero")]
 fn test_zero_weight_waste_registration() {
     let env = Env::default();
     let (client, _, recycler, _) = setup_contract(&env);
 
-    let waste_id = client.recycle_waste(
+    client.recycle_waste(
         &WasteType::Plastic,
         &0,
         &recycler,
         &1000000,
         &2000000,
     );
-
-    assert!(waste_id > 0);
 }
 
 #[test]
@@ -523,4 +522,34 @@ fn test_deregistered_cannot_submit() {
 
     let desc = String::from_str(&env, "Test");
     client.submit_material(&WasteType::Plastic, &1000, &recycler, &desc);
+}
+
+#[test]
+#[should_panic(expected = "Participant is not registered")]
+fn test_deregistered_cannot_transfer_v2() {
+    let env = Env::default();
+    let (client, _, recycler, _) = setup_contract(&env);
+
+    let manufacturer = Address::generate(&env);
+    let name = soroban_sdk::symbol_short!("test");
+    client.register_participant(&manufacturer, &ParticipantRole::Manufacturer, &name, &0, &0);
+
+    let waste_id = client.recycle_waste(&WasteType::Plastic, &1000, &recycler, &0, &0);
+    client.deregister_participant(&recycler);
+
+    // This should panic now since recycler is deregistered
+    client.transfer_waste_v2(&waste_id, &recycler, &manufacturer, &10, &10);
+}
+
+#[test]
+#[should_panic(expected = "Participant is not registered")]
+fn test_deregistered_cannot_update_incentive() {
+    let env = Env::default();
+    let (client, _, _, manufacturer) = setup_contract(&env);
+
+    let incentive = client.create_incentive(&manufacturer, &WasteType::Plastic, &100, &1000);
+    client.deregister_participant(&manufacturer);
+
+    // Should panic because the manufacturer is deregistered
+    client.update_incentive(&incentive.id, &200, &2000);
 }

@@ -6,7 +6,7 @@ use stellar_scavngr_contract::{
 };
 
 #[test]
-#[should_panic(expected = "Donation amount must be positive")]
+#[should_panic(expected = "Donation amount must be greater than zero")]
 fn test_donate_zero_amount() {
     let env = Env::default();
     env.mock_all_auths();
@@ -17,11 +17,18 @@ fn test_donate_zero_amount() {
     let donor = Address::generate(&env);
     client.initialize_admin(&admin);
     client.set_charity_contract(&admin, &charity);
+    client.register_participant(
+        &donor,
+        &ParticipantRole::Manufacturer,
+        &soroban_sdk::symbol_short!("Donor"),
+        &45_000_000,
+        &-93_000_000,
+    );
     client.donate_to_charity(&donor, &0);
 }
 
 #[test]
-#[should_panic(expected = "Collector percentage must be <= 100")]
+#[should_panic(expected = "Total percentages cannot exceed 100")]
 fn test_percentage_over_100() {
     let env = Env::default();
     env.mock_all_auths();
