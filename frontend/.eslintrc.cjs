@@ -18,9 +18,6 @@ module.exports = {
   ],
   ignorePatterns: ['dist', 'node_modules'],
   rules: {
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true }
-    ]
+    'react-refresh/only-export-components': ['warn', { allowConstantExport: true }]
   }
 }
