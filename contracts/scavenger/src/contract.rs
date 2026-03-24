@@ -530,6 +530,8 @@ impl ScavengerContract {
             "Only current owner can transfer"
         );
 
+        assert!(from != to, "Cannot transfer waste to self");
+
         // Update material owner
         material.current_owner = to.clone();
         Storage::set_material(env, waste_id, &material);
