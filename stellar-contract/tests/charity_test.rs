@@ -1,6 +1,4 @@
-use soroban_sdk::symbol_short;
 #![cfg(test)]
-
 use soroban_sdk::{
     symbol_short,
     testutils::{Address as _, Events},

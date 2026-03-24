@@ -35,6 +35,7 @@ fn test_zero_token_reward() {
 }
 
 #[test]
+#[should_panic(expected = "Waste weight must be greater than zero")]
 fn test_zero_weight_waste_registration() {
     let env = Env::default();
     let (client, _, recycler, _) = setup_contract(&env);

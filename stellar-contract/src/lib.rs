@@ -2,6 +2,7 @@
 
 mod events;
 mod types;
+mod validation;
 
 pub use types::{
     Incentive, Material, ParticipantRole, RecyclingStats, TransferItemType, TransferRecord, TransferStatus,
@@ -9,8 +10,15 @@ pub use types::{
 };
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, Vec,
 };
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)] // Expected by soroban
+pub enum Error {
+    InsufficientBudget = 1,
+}
 
 // Storage keys
 const ADMIN: Symbol = symbol_short!("ADMIN");
@@ -168,21 +176,6 @@ impl ScavengerContract {
         if &waste.current_owner != caller {
             panic!("Caller is not the owner of this waste item");
         }
-    }
-
-    // ========== Reentrancy Guard Functions ==========
-
-    /// Acquire reentrancy lock
-    fn lock(env: &Env) {
-        if env.storage().instance().get::<Symbol, bool>(&REENTRANCY_GUARD).unwrap_or(false) {
-            panic!("Reentrancy detected");
-        }
-        env.storage().instance().set(&REENTRANCY_GUARD, &true);
-    }
-
-    /// Release reentrancy lock
-    fn unlock(env: &Env) {
-        env.storage().instance().set(&REENTRANCY_GUARD, &false);
     }
 
     // ========== Charity Contract Functions ==========
@@ -479,17 +472,7 @@ impl ScavengerContract {
         }
     }
 
-    /// Validate that a participant is registered before allowing restricted actions
-    fn require_registered(env: &Env, address: &Address) {
-        let key = (address.clone(),);
-        let participant: Option<Participant> = env.storage().instance().get(&key);
 
-        match participant {
-            Some(p) if p.is_registered => {}
-            Some(_) => panic!("Participant is not registered"),
-            None => panic!("Participant not found"),
-        }
-    }
 
     /// Helper to distribute token rewards and emit events through the supply chain
     fn _reward_tokens(
@@ -794,12 +777,8 @@ impl ScavengerContract {
         let weight_kg = waste_amount / 1000;
         let reward = weight_kg * incentive.reward_points;
         
-        // Cap at remaining budget
-        if reward > incentive.remaining_budget {
-            incentive.remaining_budget
-        } else {
-            reward
-        }
+        // Exact reward calculation instead of capping
+        reward
     }
 
     /// Get all incentives for a specific waste type
@@ -1072,6 +1051,10 @@ impl ScavengerContract {
         // Validate submitter is registered
         Self::only_registered(&env, &submitter);
 
+        if weight == 0 {
+            panic!("Waste weight must be greater than zero");
+        }
+
         // Get next waste ID using the new storage system
         let waste_id = Self::next_waste_id(&env);
 
@@ -1120,6 +1103,10 @@ impl ScavengerContract {
     ) -> u128 {
         // Validate recycler is registered
         Self::only_registered(&env, &recycler);
+
+        if weight == 0 {
+            panic!("Waste weight must be greater than zero");
+        }
 
         let waste_id = Self::next_waste_id(&env) as u128;
         let timestamp = env.ledger().timestamp();
@@ -1677,11 +1664,7 @@ impl ScavengerContract {
         (total_wastes, total_weight, total_tokens)
     }
 
-    /// Get all incentive IDs for a specific rewarder/manufacturer
-    fn get_incentives_by_rewarder(env: Env, rewarder: Address) -> Vec<u64> {
-        let key = ("rewarder_incentives", rewarder);
-        env.storage().instance().get(&key).unwrap_or(Vec::new(&env))
-    }
+
 
     /// Get the active incentive with the highest reward for a specific manufacturer and waste type
     /// Returns None if no active incentive is found
@@ -1765,7 +1748,7 @@ impl ScavengerContract {
         incentive_id: u64,
         material_id: u64,
         claimer: Address,
-    ) -> i128 {
+    ) -> Result<i128, Error> {
         Self::only_registered(&env, &claimer);
 
         let mut incentive =
@@ -1786,6 +1769,9 @@ impl ScavengerContract {
         if reward == 0 {
             panic!("No reward available");
         }
+        if reward > incentive.remaining_budget {
+            return Err(Error::InsufficientBudget);
+        }
 
         incentive.remaining_budget = incentive.remaining_budget.saturating_sub(reward);
         if incentive.remaining_budget == 0 {
@@ -1795,7 +1781,7 @@ impl ScavengerContract {
 
         Self::update_participant_stats(&env, &claimer, 0, reward);
 
-        reward as i128
+        Ok(reward as i128)
     }
 
     /// Deactivate an incentive (only by creator)

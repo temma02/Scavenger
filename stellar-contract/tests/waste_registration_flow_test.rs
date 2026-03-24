@@ -498,18 +498,15 @@ fn test_waste_registration_with_different_roles() {
 // ========== Edge Cases and Validation ==========
 
 #[test]
+#[should_panic(expected = "Waste weight must be greater than zero")]
 fn test_waste_registration_with_zero_weight() {
     let env = Env::default();
     let (client, recycler) = setup_test_environment(&env);
     
     let desc = String::from_str(&env, "Zero weight waste");
     
-    // Register waste with zero weight (should be allowed)
-    let waste = client.submit_material(&WasteType::Plastic, &0, &recycler, &desc);
-    
-    // Verify it was registered
-    assert_eq!(waste.weight, 0);
-    assert_eq!(waste.id, 1);
+    // Register waste with zero weight (should fail)
+    client.submit_material(&WasteType::Plastic, &0, &recycler, &desc);
 }
 
 #[test]
