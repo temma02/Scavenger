@@ -6,6 +6,7 @@ import { App } from '@/App'
 import { AuthProvider } from '@/context/AuthContext'
 import { WalletProvider } from '@/context/WalletContext'
 import { ContractProvider } from '@/context/ContractContext'
+import { ThemeProvider } from '@/context/ThemeProvider'
 import './index.css'
 
 // Create a client
@@ -22,13 +23,15 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WalletProvider>
-          <ContractProvider>
-            <App />
-          </ContractProvider>
-        </WalletProvider>
-      </AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <AuthProvider>
+          <WalletProvider>
+            <ContractProvider>
+              <App />
+            </ContractProvider>
+          </WalletProvider>
+        </AuthProvider>
+      </ThemeProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   </React.StrictMode>
