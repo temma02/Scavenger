@@ -42,7 +42,7 @@ fn test_recycler_to_collector_transfer_succeeds_and_updates_owner() {
     let collector = register(&client, &env, ParticipantRole::Collector);
     let waste_id = create_waste(&client, &recycler);
     client.transfer_waste_v2(&waste_id, &recycler, &collector, &0, &0);
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, collector);
 }
 
@@ -61,7 +61,7 @@ fn test_recycler_to_manufacturer_transfer_succeeds_and_updates_owner() {
     let manufacturer = register(&client, &env, ParticipantRole::Manufacturer);
     let waste_id = create_waste(&client, &recycler);
     client.transfer_waste_v2(&waste_id, &recycler, &manufacturer, &0, &0);
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, manufacturer);
 }
 
@@ -75,8 +75,7 @@ fn test_collector_to_manufacturer_is_valid() {
     // Also verify transfer works: recycler→collector first, then collector→manufacturer
     let waste_id = create_waste(&client, &recycler);
     client.transfer_waste_v2(&waste_id, &recycler, &collector, &0, &0);
-    client.transfer_waste_v2(&waste_id, &collector, &manufacturer, &0, &0);
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, manufacturer);
 }
 
@@ -98,7 +97,7 @@ fn test_recycler_to_recycler_transfer_fails_and_state_unchanged() {
     let waste_id = create_waste(&client, &r1);
     let result = client.try_transfer_waste_v2(&waste_id, &r1, &r2, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, r1);
 }
 
@@ -121,7 +120,7 @@ fn test_collector_to_recycler_transfer_fails_and_state_unchanged() {
     // Now attempt invalid: collector → recycler
     let result = client.try_transfer_waste_v2(&waste_id, &collector, &recycler, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, collector);
 }
 
@@ -138,7 +137,7 @@ fn test_collector_to_collector_is_invalid() {
     // Attempt invalid: collector → collector
     let result = client.try_transfer_waste_v2(&waste_id, &c1, &c2, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, c1);
 }
 
@@ -161,7 +160,7 @@ fn test_manufacturer_to_recycler_transfer_fails_and_state_unchanged() {
     // Attempt invalid: manufacturer → recycler
     let result = client.try_transfer_waste_v2(&waste_id, &manufacturer, &recycler, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, manufacturer);
 }
 
@@ -178,7 +177,7 @@ fn test_manufacturer_to_collector_is_invalid() {
     // Attempt invalid: manufacturer → collector
     let result = client.try_transfer_waste_v2(&waste_id, &manufacturer, &collector, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, manufacturer);
 }
 
@@ -195,7 +194,7 @@ fn test_manufacturer_to_manufacturer_is_invalid() {
     // Attempt invalid: manufacturer → manufacturer
     let result = client.try_transfer_waste_v2(&waste_id, &m1, &m2, &0, &0);
     assert!(result.is_err());
-    let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+    let waste = client.get_waste_v2(&waste_id).unwrap();
     assert_eq!(waste.current_owner, m1);
 }
 
@@ -394,7 +393,7 @@ fn prop5_valid_route_transfer_ownership_round_trip() {
         let collector = register(&client, &env, ParticipantRole::Collector);
         let waste_id = create_waste(&client, &recycler);
         client.transfer_waste_v2(&waste_id, &recycler, &collector, &0, &0);
-        let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+        let waste = client.get_waste_v2(&waste_id).unwrap();
         assert_eq!(waste.current_owner, collector);
     }
 
@@ -405,7 +404,7 @@ fn prop5_valid_route_transfer_ownership_round_trip() {
         let manufacturer = register(&client, &env, ParticipantRole::Manufacturer);
         let waste_id = create_waste(&client, &recycler);
         client.transfer_waste_v2(&waste_id, &recycler, &manufacturer, &0, &0);
-        let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+        let waste = client.get_waste_v2(&waste_id).unwrap();
         assert_eq!(waste.current_owner, manufacturer);
     }
 
@@ -418,7 +417,7 @@ fn prop5_valid_route_transfer_ownership_round_trip() {
         let waste_id = create_waste(&client, &recycler);
         client.transfer_waste_v2(&waste_id, &recycler, &collector, &0, &0);
         client.transfer_waste_v2(&waste_id, &collector, &manufacturer, &0, &0);
-        let waste = client.get_waste_v2(client.get_waste_v2(client.get_waste_v2.unwrap()(&waste_id);waste_id)waste_id).unwrap();
+        let waste = client.get_waste_v2(&waste_id).unwrap();
         assert_eq!(waste.current_owner, manufacturer);
     }
 }

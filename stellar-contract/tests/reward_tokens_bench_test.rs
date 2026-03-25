@@ -59,9 +59,9 @@ fn measure_verify(env: &Env, client: &ScavengerContractClient, depth: usize) -> 
         current_owner = collector;
     }
 
-    let budget_before = env.budget().cpu_instruction_count();
+    let budget_before = env.budget().cpu_instruction_cost();
     client.verify_material(&material.id, &recycler);
-    let budget_after = env.budget().cpu_instruction_count();
+    let budget_after = env.budget().cpu_instruction_cost();
 
     budget_after - budget_before
 }
@@ -174,10 +174,10 @@ fn bench_reward_config_single_read() {
 
     client.set_percentages(&admin, &15, &35);
 
-    let before = env.budget().cpu_instruction_count();
+    let before = env.budget().cpu_instruction_cost();
     let col = client.get_collector_percentage().unwrap();
     let own = client.get_owner_percentage().unwrap();
-    let after = env.budget().cpu_instruction_count();
+    let after = env.budget().cpu_instruction_cost();
 
     println!("[bench] reward_config reads cpu_instructions={}", after - before);
     assert_eq!(col, 15);
