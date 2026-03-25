@@ -1,9 +1,11 @@
 #![no_std]
 
+mod errors;
 mod events;
 mod types;
 mod validation;
 
+pub use errors::Error;
 pub use types::{
     GlobalMetrics, Incentive, Material, ParticipantRole, RecyclingStats, TransferItemType,
     TransferRecord, TransferStatus, Waste, WasteTransfer, WasteType,
