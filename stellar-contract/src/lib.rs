@@ -4,6 +4,7 @@ mod errors;
 mod events;
 mod types;
 mod validation;
+mod test_transfer_path_validation;
 
 pub use errors::Error;
 pub use types::{
@@ -16,7 +17,7 @@ use soroban_sdk::{
 };
 
 // Storage keys
-const ADMIN: Symbol = symbol_short!("ADMIN");
+const ADMINS: Symbol = symbol_short!("ADMINS");
 const CHARITY: Symbol = symbol_short!("CHARITY");
 const REWARD_CFG: Symbol = symbol_short!("RWD_CFG");
 const TOTAL_WEIGHT: Symbol = symbol_short!("TOT_WGT");
@@ -109,35 +110,84 @@ impl ScavengerContract {
         admin.require_auth();
 
         // Check if admin is already set
-        if env.storage().instance().has(&ADMIN) {
+        if env.storage().instance().has(&ADMINS) {
             panic!("Admin already initialized");
         }
 
-        env.storage().instance().set(&ADMIN, &admin);
+        let mut admins = Vec::new(&env);
+        admins.push_back(admin);
+        env.storage().instance().set(&ADMINS, &admins);
     }
 
-    /// Get the current admin address.
+    /// Get the current admin addresses.
     ///
     /// # Returns
-    /// The `Address` of the contract administrator.
+    /// A vector of `Address`es that hold admin privileges.
+    ///
+    /// # Errors
+    /// - Panics `"Admin not set"` if [`initialize_admin`] has not been called.
+    pub fn get_admins(env: Env) -> Vec<Address> {
+        env.storage().instance().get(&ADMINS).expect("Admin not set")
+    }
+
+    /// Get the primary admin address (first in the list).
+    ///
+    /// # Returns
+    /// The `Address` of the primary contract administrator.
     ///
     /// # Errors
     /// - Panics `"Admin not set"` if [`initialize_admin`] has not been called.
     pub fn get_admin(env: Env) -> Address {
-        env.storage().instance().get(&ADMIN).expect("Admin not set")
+        Self::get_admins(env).first().expect("No admin found").clone()
     }
 
-    /// Transfer admin rights to a new address (current admin only)
-    pub fn transfer_admin(env: Env, current_admin: Address, new_admin: Address) {
+    /// Transfer admin rights to new addresses (current admin only)
+    /// Replaces the entire admin list with the new list.
+    pub fn transfer_admin(env: Env, current_admin: Address, new_admins: Vec<Address>) {
         Self::require_admin(&env, &current_admin);
-        env.storage().instance().set(&ADMIN, &new_admin);
+        // Validate new_admins is not empty
+        if new_admins.is_empty() {
+            panic!("Admin list cannot be empty");
+        }
+        env.storage().instance().set(&ADMINS, &new_admins);
+    }
+
+    /// Add a new admin address (current admin only)
+    pub fn add_admin(env: Env, current_admin: Address, new_admin: Address) {
+        Self::require_admin(&env, &current_admin);
+        let mut admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
+        if !admins.contains(&new_admin) {
+            admins.push_back(new_admin);
+            env.storage().instance().set(&ADMINS, &admins);
+        }
+    }
+
+    /// Remove an admin address (current admin only)
+    /// Cannot remove the last admin.
+    pub fn remove_admin(env: Env, current_admin: Address, admin_to_remove: Address) {
+        Self::require_admin(&env, &current_admin);
+        let mut admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
+        if admins.len() <= 1 {
+            panic!("Cannot remove the last admin");
+        }
+        // Find and remove the admin
+        let mut new_admins = Vec::new(&env);
+        for admin in admins.iter() {
+            if admin != admin_to_remove {
+                new_admins.push_back(admin);
+            }
+        }
+        if new_admins.len() == admins.len() {
+            panic!("Admin to remove not found");
+        }
+        env.storage().instance().set(&ADMINS, &new_admins);
     }
 
     /// Check if caller is admin
     fn require_admin(env: &Env, caller: &Address) {
-        let admin: Address = env.storage().instance().get(&ADMIN).expect("Admin not set");
+        let admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
 
-        if admin != *caller {
+        if !admins.contains(caller) {
             panic!("Unauthorized: caller is not admin");
         }
 
@@ -190,13 +240,13 @@ impl ScavengerContract {
     fn only_admin(env: &Env, caller: &Address) {
         caller.require_auth();
         
-        let admin: Address = env
+        let admins: Vec<Address> = env
             .storage()
             .instance()
-            .get(&ADMIN)
+            .get(&ADMINS)
             .expect("Contract admin has not been set");
         
-        if caller != &admin {
+        if !admins.contains(caller) {
             panic!("Caller is not the contract admin");
         }
     }
@@ -758,7 +808,7 @@ impl ScavengerContract {
     ///
     /// # Returns
     /// `true` if both participants are registered and the role transition is allowed.
-    pub fn is_valid_transfer(env: Env, from: Address, to: Address) -> bool {
+    pub fn is_valid_transfer(env: &Env, from: Address, to: Address) -> bool {
         let from_participant: Option<Participant> = env.storage().instance().get(&(from,));
         let to_participant: Option<Participant> = env.storage().instance().get(&(to,));
 
@@ -767,6 +817,11 @@ impl ScavengerContract {
         };
 
         if !from_p.is_registered || !to_p.is_registered {
+            return false;
+        }
+
+        // Invalid if transferring to the same role
+        if from_p.role == to_p.role {
             return false;
         }
 
@@ -1391,8 +1446,14 @@ impl ScavengerContract {
 
         assert!(from != to, "Cannot transfer waste to self");
 
+        // Align with v2: reject transfers on deactivated waste
+        // Note: Material doesn't have is_active, assuming active for deprecated function
+        // if !material.is_active {
+        //     panic!("Cannot transfer deactivated waste");
+        // }
+
         // Align with v2: enforce valid transfer routes
-        if !Self::is_valid_transfer(env.clone(), from.clone(), to.clone()) {
+        if !Self::is_valid_transfer(&env, from.clone(), to.clone()) {
             panic!("Invalid transfer: role combination not allowed");
         }
 
@@ -1628,9 +1689,9 @@ impl ScavengerContract {
     /// The [`WasteTransfer`] record that was appended to history.
     ///
     /// # Errors
-    /// - Panics `"Waste item not found"`.
-    /// - Panics `"Cannot transfer deactivated waste"`.
-    /// - Panics `"Invalid transfer"` if the role transition is not permitted.
+    /// - [`Error::WasteNotFound`] if no waste record exists for `waste_id`.
+    /// - [`Error::WasteDeactivated`] if the waste item is deactivated.
+    /// - [`Error::InvalidTransferRoute`] if the role transition is not permitted.
     /// - Panics `"Caller is not the owner of this waste item"`.
     pub fn transfer_waste_v2(
         env: Env,
@@ -1645,19 +1706,34 @@ impl ScavengerContract {
         Self::only_waste_owner(&env, &from, waste_id);
         Self::require_registered(&env, &from);
         Self::require_registered(&env, &to);
+    ) -> Result<WasteTransfer, Error> {
+        from.require_auth();
 
-        let mut waste: types::Waste = env
+        // Fetch waste first so we can return a typed error if not found
+        let mut waste: types::Waste = match env
             .storage()
             .instance()
             .get(&("waste_v2", waste_id))
-            .expect("Waste item not found");
+        {
+            Some(w) => w,
+            None => return Err(Error::WasteNotFound),
+        };
 
-        if !waste.is_active {
-            panic!("Cannot transfer deactivated waste");
+        // Verify caller owns the waste
+        if waste.current_owner != from {
+            panic!("Caller is not the owner of this waste item");
         }
 
-        if !Self::is_valid_transfer(env.clone(), from.clone(), to.clone()) {
-            panic!("Invalid transfer");
+        Self::require_registered(&env, &from);
+        Self::require_registered(&env, &to);
+
+        if !waste.is_active {
+            return Err(Error::WasteDeactivated);
+        }
+
+        // Route check after registration checks, before any storage mutation
+        if !Self::is_valid_transfer(&env, from.clone(), to.clone()) {
+            return Err(Error::InvalidTransferRoute);
         }
 
         waste.transfer_to(to.clone());
@@ -1716,7 +1792,7 @@ impl ScavengerContract {
             (from, to, timestamp),
         );
 
-        transfer
+        Ok(transfer)
     }
 
     /// Batch transfer multiple waste items to a single recipient
@@ -1728,14 +1804,14 @@ impl ScavengerContract {
         to: Address,
         latitude: i128,
         longitude: i128,
-    ) -> Vec<WasteTransfer> {
+    ) -> Result<Vec<WasteTransfer>, Error> {
         // Validate recipient is registered
         Self::require_not_paused(&env);
         Self::require_registered(&env, &to);
 
         // Handle empty batch
         if waste_ids.is_empty() {
-            return Vec::new(&env);
+            return Ok(Vec::new(&env));
         }
 
         // Phase 1: Validate all waste IDs before executing any transfer
@@ -1746,11 +1822,11 @@ impl ScavengerContract {
                 .storage()
                 .instance()
                 .get(&("waste_v2", waste_id))
-                .expect("Waste item not found");
+                .ok_or(Error::WasteNotFound)?;
 
             // Verify waste is active
             if !waste.is_active {
-                panic!("Cannot transfer deactivated waste");
+                return Err(Error::WasteDeactivated);
             }
 
             // Get the current owner
@@ -1761,8 +1837,8 @@ impl ScavengerContract {
             Self::require_registered(&env, &from);
 
             // Validate transfer route
-            if !Self::is_valid_transfer(env.clone(), from.clone(), to.clone()) {
-                panic!("Invalid transfer");
+            if !Self::is_valid_transfer(&env, from.clone(), to.clone()) {
+                return Err(Error::InvalidTransferRoute);
             }
 
             wastes_to_transfer.push_back((waste_id, waste, from));
@@ -1839,7 +1915,7 @@ impl ScavengerContract {
             transfers.push_back(transfer);
         }
 
-        transfers
+        Ok(transfers)
     }
 
     /// Transfer aggregated waste from collector to manufacturer
@@ -2697,6 +2773,8 @@ impl ScavengerContract {
         let cfg = Self::get_reward_config(&env);
         let collector_pct: u32 = cfg.collector_percentage;
         let owner_pct: u32 = cfg.owner_percentage;
+        let collector_pct = cfg.collector_percentage;
+        let owner_pct = cfg.owner_percentage;
 
         let token_address: Address = env
             .storage()
