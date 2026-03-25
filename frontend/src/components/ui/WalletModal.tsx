@@ -1,7 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
-import { formatAddress } from '@/lib/helpers';
 import { Button } from '@/components/ui/Button';
 
 const WALLETS = [
