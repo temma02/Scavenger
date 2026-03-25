@@ -17,7 +17,7 @@ use soroban_sdk::{
 };
 
 // Storage keys
-const ADMIN: Symbol = symbol_short!("ADMIN");
+const ADMINS: Symbol = symbol_short!("ADMINS");
 const CHARITY: Symbol = symbol_short!("CHARITY");
 const REWARD_CFG: Symbol = symbol_short!("RWD_CFG");
 const TOTAL_WEIGHT: Symbol = symbol_short!("TOT_WGT");
@@ -110,35 +110,84 @@ impl ScavengerContract {
         admin.require_auth();
 
         // Check if admin is already set
-        if env.storage().instance().has(&ADMIN) {
+        if env.storage().instance().has(&ADMINS) {
             panic!("Admin already initialized");
         }
 
-        env.storage().instance().set(&ADMIN, &admin);
+        let mut admins = Vec::new(&env);
+        admins.push_back(admin);
+        env.storage().instance().set(&ADMINS, &admins);
     }
 
-    /// Get the current admin address.
+    /// Get the current admin addresses.
     ///
     /// # Returns
-    /// The `Address` of the contract administrator.
+    /// A vector of `Address`es that hold admin privileges.
+    ///
+    /// # Errors
+    /// - Panics `"Admin not set"` if [`initialize_admin`] has not been called.
+    pub fn get_admins(env: Env) -> Vec<Address> {
+        env.storage().instance().get(&ADMINS).expect("Admin not set")
+    }
+
+    /// Get the primary admin address (first in the list).
+    ///
+    /// # Returns
+    /// The `Address` of the primary contract administrator.
     ///
     /// # Errors
     /// - Panics `"Admin not set"` if [`initialize_admin`] has not been called.
     pub fn get_admin(env: Env) -> Address {
-        env.storage().instance().get(&ADMIN).expect("Admin not set")
+        Self::get_admins(env).first().expect("No admin found").clone()
     }
 
-    /// Transfer admin rights to a new address (current admin only)
-    pub fn transfer_admin(env: Env, current_admin: Address, new_admin: Address) {
+    /// Transfer admin rights to new addresses (current admin only)
+    /// Replaces the entire admin list with the new list.
+    pub fn transfer_admin(env: Env, current_admin: Address, new_admins: Vec<Address>) {
         Self::require_admin(&env, &current_admin);
-        env.storage().instance().set(&ADMIN, &new_admin);
+        // Validate new_admins is not empty
+        if new_admins.is_empty() {
+            panic!("Admin list cannot be empty");
+        }
+        env.storage().instance().set(&ADMINS, &new_admins);
+    }
+
+    /// Add a new admin address (current admin only)
+    pub fn add_admin(env: Env, current_admin: Address, new_admin: Address) {
+        Self::require_admin(&env, &current_admin);
+        let mut admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
+        if !admins.contains(&new_admin) {
+            admins.push_back(new_admin);
+            env.storage().instance().set(&ADMINS, &admins);
+        }
+    }
+
+    /// Remove an admin address (current admin only)
+    /// Cannot remove the last admin.
+    pub fn remove_admin(env: Env, current_admin: Address, admin_to_remove: Address) {
+        Self::require_admin(&env, &current_admin);
+        let mut admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
+        if admins.len() <= 1 {
+            panic!("Cannot remove the last admin");
+        }
+        // Find and remove the admin
+        let mut new_admins = Vec::new(&env);
+        for admin in admins.iter() {
+            if admin != admin_to_remove {
+                new_admins.push_back(admin);
+            }
+        }
+        if new_admins.len() == admins.len() {
+            panic!("Admin to remove not found");
+        }
+        env.storage().instance().set(&ADMINS, &new_admins);
     }
 
     /// Check if caller is admin
     fn require_admin(env: &Env, caller: &Address) {
-        let admin: Address = env.storage().instance().get(&ADMIN).expect("Admin not set");
+        let admins: Vec<Address> = env.storage().instance().get(&ADMINS).expect("Admin not set");
 
-        if admin != *caller {
+        if !admins.contains(caller) {
             panic!("Unauthorized: caller is not admin");
         }
 
@@ -191,13 +240,13 @@ impl ScavengerContract {
     fn only_admin(env: &Env, caller: &Address) {
         caller.require_auth();
         
-        let admin: Address = env
+        let admins: Vec<Address> = env
             .storage()
             .instance()
-            .get(&ADMIN)
+            .get(&ADMINS)
             .expect("Contract admin has not been set");
         
-        if caller != &admin {
+        if !admins.contains(caller) {
             panic!("Caller is not the contract admin");
         }
     }
