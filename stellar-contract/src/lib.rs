@@ -220,6 +220,12 @@ impl ScavengerContract {
 
     // ========== Reentrancy Guard Helper Functions ==========
 
+    fn require_addresses_different(from: &Address, to: &Address) {
+        if from == to {
+            panic!("Self-transfer is not allowed");
+        }
+    }
+
     /// Lock the reentrancy guard
     fn lock(env: &Env) {
         if env.storage().instance().has(&REENTRANCY_GUARD) {
@@ -1395,7 +1401,7 @@ impl ScavengerContract {
             panic!("Only waste owner can transfer");
         }
 
-        assert!(from != to, "Cannot transfer waste to self");
+        Self::require_addresses_different(&from, &to);
 
         // Align with v2: reject transfers on deactivated waste
         if !material.is_active {
@@ -1651,6 +1657,7 @@ impl ScavengerContract {
         longitude: i128,
     ) -> WasteTransfer {
         // Access control check - verify caller owns the waste
+        Self::require_addresses_different(&from, &to);
         Self::only_waste_owner(&env, &from, waste_id);
         Self::require_registered(&env, &from);
         Self::require_registered(&env, &to);
@@ -1763,7 +1770,8 @@ impl ScavengerContract {
 
             // Get the current owner
             let from = waste.current_owner.clone();
-            
+
+            Self::require_addresses_different(&from, &to);
             // Verify caller owns the waste
             Self::only_waste_owner(&env, &from, waste_id);
             Self::require_registered(&env, &from);
@@ -1880,6 +1888,7 @@ impl ScavengerContract {
         notes: soroban_sdk::Symbol,
     ) -> u128 {
         collector.require_auth();
+        Self::require_addresses_different(&collector, &manufacturer);
         Self::require_registered(&env, &collector);
         Self::require_registered(&env, &manufacturer);
 
