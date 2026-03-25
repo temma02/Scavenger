@@ -104,6 +104,10 @@ pub fn emit_participant_location_updated(
     );
 }
 
+pub fn emit_admin_transferred(env: &Env, previous_admin: &Address) {
+    env.events().publish((symbol_short!("adm_xfr"),), previous_admin);
+}
+
 pub fn emit_contract_paused(env: &Env, admin: &Address) {
     env.events().publish((symbol_short!("paused"),), admin);
 }

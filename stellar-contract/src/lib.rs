@@ -150,6 +150,7 @@ impl ScavengerContract {
             panic!("Admin list cannot be empty");
         }
         env.storage().instance().set(&ADMINS, &new_admins);
+        events::emit_admin_transferred(&env, &current_admin);
     }
 
     /// Add a new admin address (current admin only)
@@ -269,6 +270,12 @@ impl ScavengerContract {
     }
 
     // ========== Reentrancy Guard Helper Functions ==========
+
+    fn require_addresses_different(from: &Address, to: &Address) {
+        if from == to {
+            panic!("Self-transfer is not allowed");
+        }
+    }
 
     // ========== Charity Contract Functions ==========
 
@@ -1700,14 +1707,10 @@ impl ScavengerContract {
         to: Address,
         latitude: i128,
         longitude: i128,
-    ) -> WasteTransfer {
-        // Access control check - verify caller owns the waste
-        Self::require_not_paused(&env);
-        Self::only_waste_owner(&env, &from, waste_id);
-        Self::require_registered(&env, &from);
-        Self::require_registered(&env, &to);
     ) -> Result<WasteTransfer, Error> {
         from.require_auth();
+        Self::require_not_paused(&env);
+        Self::require_addresses_different(&from, &to);
 
         // Fetch waste first so we can return a typed error if not found
         let mut waste: types::Waste = match env
@@ -1831,7 +1834,10 @@ impl ScavengerContract {
 
             // Get the current owner
             let from = waste.current_owner.clone();
-            
+
+            if from == to {
+                return Err(Error::SameAddress);
+            }
             // Verify caller owns the waste
             Self::only_waste_owner(&env, &from, waste_id);
             Self::require_registered(&env, &from);
