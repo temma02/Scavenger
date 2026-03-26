@@ -281,6 +281,14 @@ export class ScavengerClient {
     ])
   }
 
+  async getIncentives(wasteType: WasteType): Promise<Incentive[]> {
+    return this.invoke<Incentive[]>('get_incentives', [nativeToScVal(wasteType)])
+  }
+
+  async getAllActiveIncentives(): Promise<Incentive[]> {
+    return this.invoke<Incentive[]>('get_active_incentives', [])
+  }
+
   async updateIncentive(
     incentiveId: number,
     newRewardPoints: bigint,
