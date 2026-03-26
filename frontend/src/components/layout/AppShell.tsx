@@ -9,8 +9,10 @@ import { cn } from '@/lib/utils'
 
 const NAV_LINKS = [
   { label: 'Dashboard', href: '/', roles: ['Recycler', 'Collector', 'Manufacturer'] },
+  { label: 'My Wastes', href: '/wastes', roles: ['Recycler', 'Collector', 'Manufacturer'] },
   { label: 'Submit Waste', href: '/submit', roles: ['Recycler'] },
   { label: 'Collect', href: '/collect', roles: ['Collector'] },
+  { label: 'My Dashboard', href: '/manufacturer', roles: ['Manufacturer'] },
   { label: 'Incentives', href: '/incentives', roles: ['Manufacturer'] },
   { label: 'Transfer', href: '/transfer', roles: ['Recycler', 'Collector'] },
   { label: 'History', href: '/history', roles: ['Recycler', 'Collector', 'Manufacturer'] }
