@@ -3,6 +3,7 @@ import { useAuth } from '@/context/AuthContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ManufacturerDashboardPage } from '@/pages/ManufacturerDashboardPage'
 import { CollectorDashboardPage } from '@/pages/CollectorDashboardPage'
 
 function ProtectedLayout() {
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: 'incentives', element: <div>Incentives</div> },
       { path: 'transfer', element: <div>Transfer</div> },
       { path: 'history', element: <div>History</div> },
+      { path: 'manufacturer', element: <ManufacturerDashboardPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
