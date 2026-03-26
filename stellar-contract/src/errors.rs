@@ -168,4 +168,7 @@ pub enum Error {
     /// (30) The caller is not the original creator of the resource.
     /// Returned by: `deactivate_incentive`
     NotCreator = 30,
+
+    /// (31) Insufficient budget for the reward.
+    InsufficientBudget = 31,
 }

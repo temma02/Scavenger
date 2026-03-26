@@ -16,6 +16,13 @@ fn test_donate_zero_amount() {
     let charity = Address::generate(&env);
     let donor = Address::generate(&env);
     client.initialize_admin(&admin);
+    client.register_participant(
+        &donor,
+        &ParticipantRole::Recycler,
+        &soroban_sdk::symbol_short!("Donor"),
+        &0,
+        &0,
+    );
     client.set_charity_contract(&admin, &charity);
     client.register_participant(
         &donor,

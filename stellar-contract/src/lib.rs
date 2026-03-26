@@ -13,8 +13,9 @@ pub use types::{
 };
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol, Vec,
 };
+
 
 // Storage keys
 const ADMINS: Symbol = symbol_short!("ADMINS");
@@ -238,6 +239,17 @@ impl ScavengerContract {
         }
     }
 
+    fn require_registered(env: &Env, address: &Address) {
+        let key = (address.clone(),);
+        let participant: Option<Participant> = env.storage().instance().get(&key);
+
+        match participant {
+            Some(p) if p.is_registered => {}
+            Some(_) => panic!("Participant is not registered"),
+            None => panic!("Participant not found"),
+        }
+    }
+
     /// Verify that the caller is the contract administrator
     /// Panics with "Caller is not the contract admin" if not admin
     /// Panics with "Contract admin has not been set" if admin not configured
@@ -277,13 +289,6 @@ impl ScavengerContract {
     fn require_addresses_different(from: &Address, to: &Address) {
         if from == to {
             panic!("Self-transfer is not allowed");
-        }
-    }
-
-    /// Lock the reentrancy guard
-    fn lock(env: &Env) {
-        if env.storage().instance().has(&REENTRANCY_GUARD) {
-            panic!("Reentrant call detected");
         }
     }
 
@@ -700,17 +705,7 @@ impl ScavengerContract {
         }
     }
 
-    /// Validate that a participant is registered before allowing restricted actions
-    fn require_registered(env: &Env, address: &Address) {
-        let key = (address.clone(),);
-        let participant: Option<Participant> = env.storage().instance().get(&key);
 
-        match participant {
-            Some(p) if p.is_registered => {}
-            Some(_) => panic!("Participant is not registered"),
-            None => panic!("Participant not found"),
-        }
-    }
 
     /// Helper to distribute token rewards and emit events through the supply chain.
     /// Batches reads and merges writes to minimise storage round-trips.
@@ -1105,12 +1100,8 @@ impl ScavengerContract {
         let weight_kg = waste_amount / 1000;
         let reward = weight_kg * incentive.reward_points;
         
-        // Cap at remaining budget
-        if reward > incentive.remaining_budget {
-            incentive.remaining_budget
-        } else {
-            reward
-        }
+        // Exact reward calculation instead of capping
+        reward
     }
 
     /// Get all active incentives for a specific waste type, sorted by reward descending.
@@ -1561,6 +1552,10 @@ impl ScavengerContract {
         Self::require_not_paused(&env);
         Self::only_registered(&env, &submitter);
 
+        if weight == 0 {
+            panic!("Waste weight must be greater than zero");
+        }
+
         if weight as u128 > MAX_WASTE_WEIGHT {
             panic!("Waste weight exceeds maximum allowed");
         }
@@ -1639,7 +1634,6 @@ impl ScavengerContract {
         if weight > MAX_WASTE_WEIGHT {
             panic!("Waste weight exceeds maximum allowed");
         }
-
         let waste_id = Self::next_waste_id(&env) as u128;
         let timestamp = env.ledger().timestamp();
 
@@ -1725,12 +1719,6 @@ impl ScavengerContract {
         to: Address,
         latitude: i128,
         longitude: i128,
-    ) -> WasteTransfer {
-        // Access control check - verify caller owns the waste
-        Self::require_addresses_different(&from, &to);
-        Self::only_waste_owner(&env, &from, waste_id);
-        Self::require_registered(&env, &from);
-        Self::require_registered(&env, &to);
     ) -> Result<WasteTransfer, Error> {
         from.require_auth();
         Self::require_not_paused(&env);
@@ -2657,7 +2645,7 @@ impl ScavengerContract {
         incentive_id: u64,
         material_id: u64,
         claimer: Address,
-    ) -> i128 {
+    ) -> Result<i128, Error> {
         Self::require_not_paused(&env);
         Self::only_registered(&env, &claimer);
 
@@ -2679,6 +2667,9 @@ impl ScavengerContract {
         if reward == 0 {
             panic!("No reward available");
         }
+        if reward > incentive.remaining_budget {
+            return Err(Error::InsufficientBudget);
+        }
 
         incentive.remaining_budget = incentive.remaining_budget.saturating_sub(reward);
         if incentive.remaining_budget == 0 {
@@ -2688,7 +2679,7 @@ impl ScavengerContract {
 
         Self::update_participant_stats(&env, &claimer, 0, reward);
 
-        reward as i128
+        Ok(reward as i128)
     }
 
     /// Deactivate an incentive permanently.
