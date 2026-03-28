@@ -4,6 +4,7 @@ import { useWallet } from '@/context/WalletContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { WasteType, Material } from '@/api/types'
 import { formatTokenAmount, wasteTypeLabel, formatDate, formatAddress } from '@/lib/helpers'
 import { Coins, ArrowDownToLine, Package, BarChart3 } from 'lucide-react'
@@ -18,13 +19,13 @@ const ALL_WASTE_TYPES = [
 
 function WasteRow({ material, onTransfer }: { material: Material; onTransfer: (id: number) => void }) {
   return (
-    <div className="flex items-center justify-between rounded-md border px-4 py-3 text-sm">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-md border px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <Badge variant="secondary">{wasteTypeLabel(material.waste_type)}</Badge>
         <span className="text-muted-foreground">ID #{material.id}</span>
         <span>{material.weight.toLocaleString()} g</span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3 sm:justify-start">
         <span className="text-xs text-muted-foreground">{formatDate(material.submitted_at)}</span>
         <Button size="sm" variant="outline" onClick={() => onTransfer(material.id)}>
           Transfer
@@ -81,7 +82,7 @@ export function CollectorDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div>
         <h1 className="text-2xl font-bold">Collector Dashboard</h1>
         <p className="text-sm text-muted-foreground">{formatAddress(address)}</p>
@@ -141,7 +142,11 @@ export function CollectorDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {pendingTransfers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending transfers.</p>
+            <EmptyState
+              icon={ArrowDownToLine}
+              title="No pending transfers"
+              description="Transfers heading your way will appear here"
+            />
           ) : (
             pendingTransfers.map((m) => (
               <WasteRow key={m.id} material={m} onTransfer={handleTransfer} />
@@ -157,7 +162,11 @@ export function CollectorDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {collectedWastes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No collected wastes yet.</p>
+            <EmptyState
+              icon={Package}
+              title="No collected wastes"
+              description="Collected waste items will appear here"
+            />
           ) : (
             collectedWastes.map((m) => (
               <WasteRow key={m.id} material={m} onTransfer={handleTransfer} />

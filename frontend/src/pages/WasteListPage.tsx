@@ -1,25 +1,26 @@
 import { useState } from 'react'
-import { Search, Eye, ArrowRightLeft, CheckCircle, Loader2 } from 'lucide-react'
+import { Search, Eye, ArrowRightLeft, CheckCircle, Loader2, Recycle } from 'lucide-react'
 import { useWasteList } from '@/hooks/useWasteList'
 import { Material, WasteType } from '@/api/types'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { WasteCardSkeleton } from '@/components/ui/Skeletons'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { AddressDisplay } from '@/components/ui/AddressDisplay'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/Select'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/Dialog'
 
 const PAGE_SIZE = 10
@@ -29,7 +30,7 @@ const WASTE_LABELS: Record<WasteType, string> = {
   [WasteType.PetPlastic]: 'PET Plastic',
   [WasteType.Plastic]: 'Plastic',
   [WasteType.Metal]: 'Metal',
-  [WasteType.Glass]: 'Glass',
+  [WasteType.Glass]: 'Glass'
 }
 
 type StatusFilter = 'all' | 'active' | 'confirmed' | 'inactive'
@@ -42,11 +43,14 @@ function getStatus(w: Material): StatusFilter {
 
 function statusBadge(w: Material) {
   const s = getStatus(w)
-  const map: Record<StatusFilter, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+  const map: Record<
+    StatusFilter,
+    { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }
+  > = {
     active: { label: 'Active', variant: 'default' },
     confirmed: { label: 'Confirmed', variant: 'secondary' },
     inactive: { label: 'Inactive', variant: 'outline' },
-    all: { label: '', variant: 'outline' },
+    all: { label: '', variant: 'outline' }
   }
   return <Badge variant={map[s].variant}>{map[s].label}</Badge>
 }
@@ -94,35 +98,40 @@ export function WasteListPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       <h1 className="text-2xl font-bold">My Wastes</h1>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <div className="relative w-40">
+        <div className="relative w-full sm:w-40">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
             placeholder="Search ID…"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
           />
         </div>
 
         <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Waste type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
             {Object.entries(WASTE_LABELS).map(([val, label]) => (
-              <SelectItem key={val} value={val}>{label}</SelectItem>
+              <SelectItem key={val} value={val}>
+                {label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -154,10 +163,26 @@ export function WasteListPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {Array.from({ length: 5 }).map((_, i) => <WasteCardSkeleton key={i} />)}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <WasteCardSkeleton key={i} />
+              ))}
             </tbody>
           </table>
         </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Recycle}
+          title={
+            search || typeFilter !== 'all' || statusFilter !== 'all'
+              ? 'No wastes match your filters'
+              : 'No wastes yet'
+          }
+          description={
+            search || typeFilter !== 'all' || statusFilter !== 'all'
+              ? 'Try adjusting your search or filters'
+              : 'Start by registering your first waste'
+          }
+        />
       ) : (
         <>
           {/* Table */}
@@ -174,64 +199,61 @@ export function WasteListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {paginated.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                      No wastes found.
+                {paginated.map((w) => (
+                  <tr key={w.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-mono">#{w.id}</td>
+                    <td className="px-4 py-3">{WASTE_LABELS[w.waste_type]}</td>
+                    <td className="px-4 py-3">{w.weight}</td>
+                    <td className="px-4 py-3">{statusBadge(w)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {new Date(w.submitted_at * 1000).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="View details"
+                          onClick={() => setDetailWaste(w)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {w.is_active && !w.is_confirmed && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Confirm"
+                              onClick={() => confirmWaste(w.id)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Transfer"
+                              onClick={() => {
+                                setTransferTarget(w)
+                                setToAddress('')
+                              }}
+                            >
+                              <ArrowRightLeft className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  paginated.map((w) => (
-                    <tr key={w.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono">#{w.id}</td>
-                      <td className="px-4 py-3">{WASTE_LABELS[w.waste_type]}</td>
-                      <td className="px-4 py-3">{w.weight}</td>
-                      <td className="px-4 py-3">{statusBadge(w)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(w.submitted_at * 1000).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title="View details"
-                            onClick={() => setDetailWaste(w)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {w.is_active && !w.is_confirmed && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title="Confirm"
-                                onClick={() => confirmWaste(w.id)}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title="Transfer"
-                                onClick={() => { setTransferTarget(w); setToAddress('') }}
-                              >
-                                <ArrowRightLeft className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>{filtered.length} waste{filtered.length !== 1 ? 's' : ''}</span>
+          <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              {filtered.length} waste{filtered.length !== 1 ? 's' : ''}
+            </span>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -241,7 +263,9 @@ export function WasteListPage() {
               >
                 Previous
               </Button>
-              <span>Page {page} of {totalPages}</span>
+              <span>
+                Page {page} of {totalPages}
+              </span>
               <Button
                 size="sm"
                 variant="outline"
@@ -272,13 +296,19 @@ export function WasteListPage() {
               <dt className="text-muted-foreground">Verified</dt>
               <dd>{detailWaste.verified ? 'Yes' : 'No'}</dd>
               <dt className="text-muted-foreground">Submitter</dt>
-              <dd><AddressDisplay address={detailWaste.submitter} showExplorer /></dd>
+              <dd>
+                <AddressDisplay address={detailWaste.submitter} showExplorer />
+              </dd>
               <dt className="text-muted-foreground">Current Owner</dt>
-              <dd><AddressDisplay address={detailWaste.current_owner} showExplorer /></dd>
+              <dd>
+                <AddressDisplay address={detailWaste.current_owner} showExplorer />
+              </dd>
               {detailWaste.is_confirmed && (
                 <>
                   <dt className="text-muted-foreground">Confirmer</dt>
-                  <dd><AddressDisplay address={detailWaste.confirmer} showExplorer /></dd>
+                  <dd>
+                    <AddressDisplay address={detailWaste.confirmer} showExplorer />
+                  </dd>
                 </>
               )}
               <dt className="text-muted-foreground">Submitted</dt>
@@ -303,7 +333,9 @@ export function WasteListPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTransferTarget(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setTransferTarget(null)}>
+              Cancel
+            </Button>
             <Button onClick={handleTransfer} disabled={transferring || !toAddress.trim()}>
               {transferring ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Transfer

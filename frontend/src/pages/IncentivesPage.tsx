@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Zap } from 'lucide-react'
 import { useIncentives } from '@/hooks/useIncentives'
 import { Incentive, WasteType, Role } from '@/api/types'
 import { useAuth } from '@/context/AuthContext'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { IncentiveCardSkeleton } from '@/components/ui/Skeletons'
 import { AddressDisplay } from '@/components/ui/AddressDisplay'
 import {
@@ -14,14 +15,14 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@/components/ui/Select'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from '@/components/ui/Dialog'
 
 const WASTE_LABELS: Record<WasteType, string> = {
@@ -29,17 +30,26 @@ const WASTE_LABELS: Record<WasteType, string> = {
   [WasteType.PetPlastic]: 'PET Plastic',
   [WasteType.Plastic]: 'Plastic',
   [WasteType.Metal]: 'Metal',
-  [WasteType.Glass]: 'Glass',
+  [WasteType.Glass]: 'Glass'
 }
 
-const ALL_WASTE_TYPES = Object.values(WasteType).filter((v): v is WasteType => typeof v === 'number')
+const ALL_WASTE_TYPES = Object.values(WasteType).filter(
+  (v): v is WasteType => typeof v === 'number'
+)
 
 type FormState = { wasteType: string; rewardPoints: string; budget: string }
 const EMPTY_FORM: FormState = { wasteType: String(WasteType.Paper), rewardPoints: '', budget: '' }
 
 export function IncentivesPage() {
-  const { incentives, isLoading, error, address, createIncentive, updateIncentive, deactivateIncentive } =
-    useIncentives()
+  const {
+    incentives,
+    isLoading,
+    error,
+    address,
+    createIncentive,
+    updateIncentive,
+    deactivateIncentive
+  } = useIncentives()
   const { user } = useAuth()
   const isManufacturer = user?.role === Role.Manufacturer
 
@@ -51,12 +61,16 @@ export function IncentivesPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
 
-  const openCreate = () => { setForm(EMPTY_FORM); setEditTarget(null); setCreateOpen(true) }
+  const openCreate = () => {
+    setForm(EMPTY_FORM)
+    setEditTarget(null)
+    setCreateOpen(true)
+  }
   const openEdit = (inc: Incentive) => {
     setForm({
       wasteType: String(inc.waste_type),
       rewardPoints: String(inc.reward_points),
-      budget: String(inc.remaining_budget),
+      budget: String(inc.remaining_budget)
     })
     setEditTarget(inc)
     setCreateOpen(true)
@@ -68,7 +82,11 @@ export function IncentivesPage() {
       if (editTarget) {
         await updateIncentive(editTarget.id, BigInt(form.rewardPoints), BigInt(form.budget))
       } else {
-        await createIncentive(Number(form.wasteType) as WasteType, BigInt(form.rewardPoints), BigInt(form.budget))
+        await createIncentive(
+          Number(form.wasteType) as WasteType,
+          BigInt(form.rewardPoints),
+          BigInt(form.budget)
+        )
       }
       setCreateOpen(false)
     } finally {
@@ -76,9 +94,10 @@ export function IncentivesPage() {
     }
   }
 
-  const filtered = typeFilter === 'all'
-    ? incentives
-    : incentives.filter((i) => i.waste_type === Number(typeFilter))
+  const filtered =
+    typeFilter === 'all'
+      ? incentives
+      : incentives.filter((i) => i.waste_type === Number(typeFilter))
 
   // Group by waste type
   const grouped = ALL_WASTE_TYPES.reduce<Record<WasteType, Incentive[]>>(
@@ -87,18 +106,20 @@ export function IncentivesPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Incentives</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-full sm:w-36">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
               {ALL_WASTE_TYPES.map((wt) => (
-                <SelectItem key={wt} value={String(wt)}>{WASTE_LABELS[wt]}</SelectItem>
+                <SelectItem key={wt} value={String(wt)}>
+                  {WASTE_LABELS[wt]}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -127,7 +148,9 @@ export function IncentivesPage() {
               <CardContent>
                 <table className="w-full text-sm">
                   <tbody className="divide-y">
-                    {Array.from({ length: 3 }).map((_, j) => <IncentiveCardSkeleton key={j} />)}
+                    {Array.from({ length: 3 }).map((_, j) => (
+                      <IncentiveCardSkeleton key={j} />
+                    ))}
                   </tbody>
                 </table>
               </CardContent>
@@ -136,74 +159,88 @@ export function IncentivesPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {ALL_WASTE_TYPES.map((wt) => {
-            const group = grouped[wt]
-            if (group.length === 0) return null
-            return (
-              <Card key={wt}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{WASTE_LABELS[wt]}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="text-left text-muted-foreground">
-                        <tr>
-                          <th className="pb-2 pr-4 font-medium">ID</th>
-                          <th className="pb-2 pr-4 font-medium">Rewarder</th>
-                          <th className="pb-2 pr-4 font-medium">Pts / unit</th>
-                          <th className="pb-2 pr-4 font-medium">Budget remaining</th>
-                          {isManufacturer && <th className="pb-2 font-medium text-right">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {group.map((inc) => {
-                          const isOwner = inc.rewarder === address
-                          return (
-                            <tr key={inc.id} className="hover:bg-muted/30 transition-colors">
-                              <td className="py-2 pr-4 font-mono">#{inc.id}</td>
-                              <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
-                                <AddressDisplay address={inc.rewarder} showExplorer />
-                              </td>
-                              <td className="py-2 pr-4">{inc.reward_points}</td>
-                              <td className="py-2 pr-4">
-                                <Badge variant="secondary">
-                                  {inc.remaining_budget.toLocaleString()}
-                                </Badge>
-                              </td>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={Zap}
+              title="No incentives found"
+              description={typeFilter !== 'all' ? "No incentives for this waste type" : "No incentives yet"}
+              action={isManufacturer ? { label: "Create Incentive", onClick: openCreate } : undefined}
+            />
+          ) : (
+            <>
+              {ALL_WASTE_TYPES.map((wt) => {
+                const group = grouped[wt]
+                if (group.length === 0) return null
+                return (
+                  <Card key={wt}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{WASTE_LABELS[wt]}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="text-left text-muted-foreground">
+                            <tr>
+                              <th className="pb-2 pr-4 font-medium">ID</th>
+                              <th className="pb-2 pr-4 font-medium">Rewarder</th>
+                              <th className="pb-2 pr-4 font-medium">Pts / unit</th>
+                              <th className="pb-2 pr-4 font-medium">Budget remaining</th>
                               {isManufacturer && (
-                                <td className="py-2 text-right">
-                                  {isOwner && (
-                                    <div className="flex justify-end gap-1">
-                                      <Button size="sm" variant="ghost" title="Edit" onClick={() => openEdit(inc)}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        title="Deactivate"
-                                        className="text-destructive hover:text-destructive"
-                                        onClick={() => deactivateIncentive(inc.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </td>
+                                <th className="pb-2 font-medium text-right">Actions</th>
                               )}
                             </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-
-          {filtered.length === 0 && (
-            <p className="py-12 text-center text-muted-foreground">No active incentives found.</p>
+                          </thead>
+                          <tbody className="divide-y">
+                            {group.map((inc) => {
+                              const isOwner = inc.rewarder === address
+                              return (
+                                <tr key={inc.id} className="hover:bg-muted/30 transition-colors">
+                                  <td className="py-2 pr-4 font-mono">#{inc.id}</td>
+                                  <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">
+                                    <AddressDisplay address={inc.rewarder} showExplorer />
+                                  </td>
+                                  <td className="py-2 pr-4">{inc.reward_points}</td>
+                                  <td className="py-2 pr-4">
+                                    <Badge variant="secondary">
+                                      {inc.remaining_budget.toLocaleString()}
+                                    </Badge>
+                                  </td>
+                                  {isManufacturer && (
+                                    <td className="py-2 text-right">
+                                      {isOwner && (
+                                        <div className="flex justify-end gap-1">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            title="Edit"
+                                            onClick={() => openEdit(inc)}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            title="Deactivate"
+                                            className="text-destructive hover:text-destructive"
+                                            onClick={() => deactivateIncentive(inc.id)}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </td>
+                                  )}
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </>
           )}
         </div>
       )}
@@ -222,10 +259,14 @@ export function IncentivesPage() {
                   value={form.wasteType}
                   onValueChange={(v) => setForm((f) => ({ ...f, wasteType: v }))}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {ALL_WASTE_TYPES.map((wt) => (
-                      <SelectItem key={wt} value={String(wt)}>{WASTE_LABELS[wt]}</SelectItem>
+                      <SelectItem key={wt} value={String(wt)}>
+                        {WASTE_LABELS[wt]}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -242,7 +283,9 @@ export function IncentivesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{editTarget ? 'Budget to add' : 'Total Budget'} (tokens)</label>
+              <label className="text-sm font-medium">
+                {editTarget ? 'Budget to add' : 'Total Budget'} (tokens)
+              </label>
               <Input
                 type="number"
                 min="1"
@@ -253,7 +296,9 @@ export function IncentivesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleSubmit}
               disabled={submitting || !form.rewardPoints || !form.budget}

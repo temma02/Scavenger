@@ -24,23 +24,16 @@ function ProtectedLayout() {
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
+  { path: '/', element: <LandingPage /> },
   { path: '/login', element: <LoginPage /> },
-  {
-    // Public landing page
-    path: '/',
-    element: <LandingPage />,
-  },
   {
     // Protected routes share AppShell and require authentication
     element: <ProtectedLayout />,
     children: [
       { path: 'dashboard', element: <HomePage /> },
       { path: 'submit', element: <div>Submit Waste</div> },
-      { path: 'collect', element: <div>Collect</div> },
-      { path: 'incentives', element: <IncentivesPage /> },
       { path: 'collect', element: <CollectorDashboardPage /> },
-      { path: 'incentives', element: <div>Incentives</div> },
+      { path: 'incentives', element: <IncentivesPage /> },
       { path: 'transfer', element: <div>Transfer</div> },
       { path: 'history', element: <div>History</div> },
       { path: 'dashboard/recycler', element: <RecyclerDashboard /> },

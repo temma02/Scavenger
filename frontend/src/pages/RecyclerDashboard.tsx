@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Coins, Recycle, Weight } from 'lucide-react'
+import { Plus, Coins, Recycle, Weight, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { StatCardSkeleton } from '@/components/ui/Skeletons'
-import { AddressDisplay } from '@/components/ui/AddressDisplay'
 import { RegisterWasteModal } from '@/components/modals/RegisterWasteModal'
+import { TransferWasteModal } from '@/components/modals/TransferWasteModal'
 import { useAuth } from '@/context/AuthContext'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { ScavengerClient } from '@/api/client'
@@ -51,6 +52,7 @@ export function RecyclerDashboard() {
   const [incentives, setIncentives] = useState<Incentive[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [transferWasteId, setTransferWasteId] = useState<bigint | null>(null)
 
   const load = useCallback(async () => {
     if (!address) return
@@ -76,8 +78,8 @@ export function RecyclerDashboard() {
   useEffect(() => { load() }, [load])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 overflow-x-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -143,18 +145,34 @@ export function RecyclerDashboard() {
               ))}
             </div>
           ) : wastes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No wastes submitted yet.</p>
+            <EmptyState
+              icon={Recycle}
+              title="No wastes submitted"
+              description="Start by submitting your first waste"
+              action={{ label: "Register Waste", onClick: () => setModalOpen(true) }}
+            />
           ) : (
             <div className="divide-y">
               {wastes.map((m) => (
-                <div key={m.id} className="flex items-center justify-between py-3">
+                <div key={m.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">
                       #{m.id} · {WASTE_LABELS[m.waste_type]}
                     </p>
                     <p className="text-xs text-muted-foreground">{m.weight} kg</p>
                   </div>
-                  <Badge variant={statusVariant(m)}>{statusLabel(m)}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={statusVariant(m)}>{statusLabel(m)}</Badge>
+                    {m.is_active && !m.is_confirmed && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTransferWasteId(BigInt(m.id))}
+                      >
+                        Transfer
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -181,11 +199,15 @@ export function RecyclerDashboard() {
               ))}
             </div>
           ) : incentives.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active incentives.</p>
+            <EmptyState
+              icon={Zap}
+              title="No active incentives"
+              description="Incentives will appear once manufacturers create them"
+            />
           ) : (
             <div className="divide-y">
               {incentives.map((inc) => (
-                <div key={inc.id} className="flex items-center justify-between py-3">
+                <div key={inc.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">{WASTE_LABELS[inc.waste_type]}</p>
                     <p className="text-xs text-muted-foreground">
@@ -208,6 +230,14 @@ export function RecyclerDashboard() {
         onClose={() => setModalOpen(false)}
         onSuccess={() => { setModalOpen(false); load() }}
       />
+
+      {transferWasteId !== null && (
+        <TransferWasteModal
+          open
+          wasteId={transferWasteId}
+          onClose={() => { setTransferWasteId(null); load() }}
+        />
+      )}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   Dialog,
   DialogContent,
@@ -53,8 +54,8 @@ export function ManufacturerDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 overflow-x-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Manufacturer Dashboard</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -82,7 +83,11 @@ export function ManufacturerDashboardPage() {
             </CardHeader>
             <CardContent>
               {pendingWastes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No pending waste.</p>
+                <EmptyState
+                  icon={PackageCheck}
+                  title="No pending waste"
+                  description="Waste waiting for confirmation will appear here"
+                />
               ) : (
                 <ul className="space-y-3">
                   {pendingWastes.map((w) => (
@@ -111,7 +116,12 @@ export function ManufacturerDashboardPage() {
             </CardHeader>
             <CardContent>
               {incentives.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active incentives.</p>
+                <EmptyState
+                  icon={Zap}
+                  title="No active incentives"
+                  description="Incentives will appear here once created"
+                  action={{ label: "Create Incentive", onClick: () => setDialogOpen(true) }}
+                />
               ) : (
                 <ul className="space-y-3">
                   {incentives.map((inc) => (
@@ -140,7 +150,11 @@ export function ManufacturerDashboardPage() {
             </CardHeader>
             <CardContent>
               {rewardHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No rewards distributed yet.</p>
+                <EmptyState
+                  icon={History}
+                  title="No rewards distributed"
+                  description="Rewards will appear here as they are distributed"
+                />
               ) : (
                 <ul className="space-y-3">
                   {rewardHistory.map((r, i) => (

@@ -1,7 +1,8 @@
-import { ArrowRight, MapPin, Clock, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, Clock, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { WasteTransfer } from '@/api/types'
 import { formatAddress, formatDate } from '@/lib/helpers'
+import { EmptyState } from './EmptyState'
 
 export interface TransferTimelineProps {
   history: WasteTransfer[]
@@ -37,10 +38,12 @@ export function TransferTimeline({
 
   if (history.length === 0) {
     return (
-      <div className={cn('flex flex-col items-center gap-2 py-10 text-muted-foreground', className)}>
-        <Clock className="h-8 w-8 opacity-40" />
-        <p className="text-sm">No transfer history yet</p>
-      </div>
+      <EmptyState
+        icon={Clock}
+        title="No transfer history"
+        description="This waste hasn't been transferred yet"
+        className={className}
+      />
     )
   }
 
