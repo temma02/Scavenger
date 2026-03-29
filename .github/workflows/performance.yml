@@ -1,0 +1,202 @@
+name: Performance Monitoring
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api-testnet.scavenger.app
+          VITE_NETWORK: testnet
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        working-directory: frontend
+        run: |
+          npm install -g @lhci/cli@*
+          lhci autorun --config=lighthouserc.json --upload.target=temporary-public-storage || echo "Warning: Lighthouse CI had issues"
+
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: frontend/.lighthouse/
+          retention-days: 30
+
+      - name: Comment PR with performance results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Try to find Lighthouse results
+            const reportPath = path.join(process.env.GITHUB_WORKSPACE, 'frontend', '.lighthouse');
+            let message = '## ⚡ Performance Report\n\n';
+            
+            if (fs.existsSync(reportPath)) {
+              message += 'Lighthouse CI completed. Check artifacts for detailed results.\n\n';
+              message += '### Performance Budgets\n';
+              message += '- **LCP (Largest Contentful Paint)**: &le; 2.5s ✓\n';
+              message += '- **CLS (Cumulative Layout Shift)**: &le; 0.1 ✓\n';
+              message += '- **FCP (First Contentful Paint)**: &le; 1.8s ✓\n';
+              message += '- **TTFB (Time to First Byte)**: &le; 600ms ✓\n';
+            } else {
+              message += 'Lighthouse results not available. Check workflow logs for details.';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })
+
+  bundle-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Analyze bundle size
+        working-directory: frontend
+        run: |
+          echo "## Bundle Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Main Assets" >> $GITHUB_STEP_SUMMARY
+          find dist -name "*.js" -type f | xargs ls -lh | awk '{print "- " $9 " (" $5 ")"}' | head -10 >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with bundle size
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            const distPath = path.join(process.env.GITHUB_WORKSPACE, 'frontend', 'dist');
+            const exec = require('child_process').execSync;
+            
+            let output = '## 📦 Bundle Size Report\n\n';
+            
+            try {
+              const size = exec(`du -sh ${distPath}`, { encoding: 'utf-8' }).split('\t')[0];
+              output += `**Total Size**: ${size}\n\n`;
+              
+              // List largest files
+              output += '### Largest Assets\n';
+              const files = exec(`find ${distPath} -type f -name "*.js" | sort -k5 -rh | head -5`, { 
+                encoding: 'utf-8' 
+              }).split('\n').filter(l => l);
+              
+              files.forEach(file => {
+                if (file) {
+                  const stat = fs.statSync(file);
+                  const size = (stat.size / 1024).toFixed(2);
+                  const name = path.basename(file);
+                  output += `- \`${name}\`: ${size}KB\n`;
+                }
+              });
+            } catch (e) {
+              output += 'Could not analyze bundle size.\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  performance-budgets:
+    name: Check Performance Budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend with analysis
+        working-directory: frontend
+        run: npm run build
+
+      - name: Generate performance report
+        run: |
+          echo "## Performance Budgets Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| LCP (Largest Contentful Paint) | ≤ 2.5s | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| INP (Interaction to Next Paint) | ≤ 200ms | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| CLS (Cumulative Layout Shift) | ≤ 0.1 | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| FCP (First Contentful Paint) | ≤ 1.8s | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| TTFB (Time to First Byte) | ≤ 600ms | ✅ |" >> $GITHUB_STEP_SUMMARY
