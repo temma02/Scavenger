@@ -118,8 +118,12 @@ export function SupplyChainTrackerPage() {
       {/* Search */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1">
+          <label htmlFor="supply-chain-waste-id" className="sr-only">
+            Waste ID
+          </label>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="supply-chain-waste-id"
             ref={inputRef}
             type="number"
             min="1"
@@ -143,7 +147,11 @@ export function SupplyChainTrackerPage() {
 
       {/* Not found */}
       {notFound && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-muted-foreground">
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-muted-foreground"
+        >
           <Package className="h-10 w-10 opacity-40" />
           <p className="text-sm">No waste found with ID #{searchedId?.toString()}.</p>
         </div>

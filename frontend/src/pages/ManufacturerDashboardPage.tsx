@@ -64,7 +64,11 @@ export function ManufacturerDashboardPage() {
       </div>
 
       {error && (
-        <p className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -187,9 +191,11 @@ export function ManufacturerDashboardPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Waste Type</label>
+              <label htmlFor="manufacturer-waste-type" className="text-sm font-medium">
+                Waste Type
+              </label>
               <Select value={form.wasteType} onValueChange={(v) => setForm((f) => ({ ...f, wasteType: v }))}>
-                <SelectTrigger>
+                <SelectTrigger id="manufacturer-waste-type" autoFocus>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,8 +208,11 @@ export function ManufacturerDashboardPage() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Reward Points (per unit)</label>
+              <label htmlFor="manufacturer-reward-points" className="text-sm font-medium">
+                Reward Points (per unit)
+              </label>
               <Input
+                id="manufacturer-reward-points"
                 type="number"
                 min="1"
                 placeholder="e.g. 100"
@@ -212,8 +221,11 @@ export function ManufacturerDashboardPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Total Budget (tokens)</label>
+              <label htmlFor="manufacturer-budget" className="text-sm font-medium">
+                Total Budget (tokens)
+              </label>
               <Input
+                id="manufacturer-budget"
                 type="number"
                 min="1"
                 placeholder="e.g. 10000"

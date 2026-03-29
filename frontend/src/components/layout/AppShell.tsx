@@ -54,7 +54,7 @@ export function AppShell({ children }: PropsWithChildren) {
           onClick={() => {
             logout()
           }}
-          className="mt-auto flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-accent"
+          className="mt-auto flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <LogOut className="h-4 w-4" />
           Sign out

@@ -104,8 +104,12 @@ export function WasteListPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative w-full sm:w-40">
+          <label htmlFor="waste-search-input" className="sr-only">
+            Search wastes by ID
+          </label>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="waste-search-input"
             className="pl-9"
             placeholder="Search ID…"
             value={search}
@@ -116,8 +120,11 @@ export function WasteListPage() {
           />
         </div>
 
+        <label htmlFor="waste-type-filter" className="sr-only">
+          Filter wastes by type
+        </label>
         <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger id="waste-type-filter" className="w-full sm:w-36">
             <SelectValue placeholder="Waste type" />
           </SelectTrigger>
           <SelectContent>
@@ -130,8 +137,11 @@ export function WasteListPage() {
           </SelectContent>
         </Select>
 
+        <label htmlFor="waste-status-filter" className="sr-only">
+          Filter wastes by status
+        </label>
         <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
-          <SelectTrigger className="w-full sm:w-36">
+          <SelectTrigger id="waste-status-filter" className="w-full sm:w-36">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -144,7 +154,11 @@ export function WasteListPage() {
       </div>
 
       {error && (
-        <p className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -213,6 +227,7 @@ export function WasteListPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          aria-label={`View details for waste #${w.id}`}
                           title="View details"
                           onClick={() => setDetailWaste(w)}
                         >
@@ -223,6 +238,7 @@ export function WasteListPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              aria-label={`Confirm waste #${w.id}`}
                               title="Confirm"
                               onClick={() => confirmWaste(w.id)}
                             >
@@ -231,6 +247,7 @@ export function WasteListPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              aria-label={`Transfer waste #${w.id}`}
                               title="Transfer"
                               onClick={() => {
                                 setTransferTarget(w)
@@ -325,11 +342,15 @@ export function WasteListPage() {
             <DialogTitle>Transfer Waste #{transferTarget?.id}</DialogTitle>
           </DialogHeader>
           <div className="space-y-1.5 py-2">
-            <label className="text-sm font-medium">Recipient Address</label>
+            <label htmlFor="waste-transfer-recipient" className="text-sm font-medium">
+              Recipient Address
+            </label>
             <Input
+              id="waste-transfer-recipient"
               placeholder="G…"
               value={toAddress}
               onChange={(e) => setToAddress(e.target.value)}
+              autoFocus
             />
           </div>
           <DialogFooter>

@@ -19,7 +19,7 @@ export function TransferTimeline({
 }: TransferTimelineProps) {
   if (isLoading) {
     return (
-      <div className={cn('space-y-4', className)}>
+      <div className={cn('space-y-4', className)} role="status" aria-live="polite">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex gap-4 animate-pulse">
             <div className="flex flex-col items-center">

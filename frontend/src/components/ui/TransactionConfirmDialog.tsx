@@ -54,7 +54,7 @@ export function TransactionConfirmDialog({
         </DialogHeader>
 
         {/* Transaction summary */}
-        <div className="rounded-md border bg-muted/40 divide-y text-sm">
+        <div className="rounded-md border bg-muted/40 divide-y text-sm" role="status" aria-live="polite">
           <div className="flex items-center justify-between px-4 py-2.5">
             <span className="text-muted-foreground">Action</span>
             <span className="font-semibold">{action}</span>

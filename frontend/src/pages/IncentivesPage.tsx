@@ -115,8 +115,11 @@ export function IncentivesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Incentives</h1>
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <label htmlFor="incentive-type-filter" className="sr-only">
+            Filter incentives by waste type
+          </label>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full sm:w-36">
+            <SelectTrigger id="incentive-type-filter" className="w-full sm:w-36">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
@@ -138,7 +141,11 @@ export function IncentivesPage() {
       </div>
 
       {error && (
-        <p className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="rounded-md border border-destructive bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -217,6 +224,7 @@ export function IncentivesPage() {
                                           <Button
                                             size="sm"
                                             variant="ghost"
+                                            aria-label={`Edit incentive #${inc.id}`}
                                             title="Edit"
                                             onClick={() => openEdit(inc)}
                                           >
@@ -225,6 +233,7 @@ export function IncentivesPage() {
                                           <Button
                                             size="sm"
                                             variant="ghost"
+                                            aria-label={`Deactivate incentive #${inc.id}`}
                                             title="Deactivate"
                                             className="text-destructive hover:text-destructive"
                                             onClick={() => deactivateIncentive(inc.id)}
@@ -259,12 +268,14 @@ export function IncentivesPage() {
           <div className="space-y-4 py-2">
             {!editTarget && (
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Waste Type</label>
+                <label htmlFor="incentive-waste-type" className="text-sm font-medium">
+                  Waste Type
+                </label>
                 <Select
                   value={form.wasteType}
                   onValueChange={(v) => setForm((f) => ({ ...f, wasteType: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="incentive-waste-type" autoFocus>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -278,20 +289,25 @@ export function IncentivesPage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Reward Points (per unit)</label>
+              <label htmlFor="incentive-reward-points" className="text-sm font-medium">
+                Reward Points (per unit)
+              </label>
               <Input
+                id="incentive-reward-points"
                 type="number"
                 min="1"
                 placeholder="e.g. 100"
                 value={form.rewardPoints}
                 onChange={(e) => setForm((f) => ({ ...f, rewardPoints: e.target.value }))}
+                autoFocus={!!editTarget}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
+              <label htmlFor="incentive-budget" className="text-sm font-medium">
                 {editTarget ? 'Budget to add' : 'Total Budget'} (tokens)
               </label>
               <Input
+                id="incentive-budget"
                 type="number"
                 min="1"
                 placeholder="e.g. 10000"

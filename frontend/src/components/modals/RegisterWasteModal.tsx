@@ -131,7 +131,7 @@ export function RegisterWasteModal({ open, address, onClose, onSuccess }: Props)
     return (
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="sm:max-w-md">
-          <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <div className="flex flex-col items-center gap-4 py-6 text-center" role="status" aria-live="polite">
             <CheckCircle2 className="h-12 w-12 text-green-500" />
             <div>
               <p className="text-lg font-semibold">Waste registered</p>
@@ -188,7 +188,7 @@ export function RegisterWasteModal({ open, address, onClose, onSuccess }: Props)
               value={String(wasteType)}
               onValueChange={(v) => setWasteType(Number(v) as WasteType)}
             >
-              <SelectTrigger id="waste-type-trigger" className="w-full">
+              <SelectTrigger id="waste-type-trigger" className="w-full" autoFocus>
                 <SelectValue>
                   {selectedType && (
                     <span className="flex items-center gap-2">
@@ -275,7 +275,9 @@ export function RegisterWasteModal({ open, address, onClose, onSuccess }: Props)
             </div>
 
             {locError && (
-              <p className="text-xs text-destructive">{locError}</p>
+              <p role="alert" aria-live="assertive" className="text-xs text-destructive">
+                {locError}
+              </p>
             )}
           </div>
 

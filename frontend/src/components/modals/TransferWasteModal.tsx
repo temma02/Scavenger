@@ -200,7 +200,11 @@ export function TransferWasteModal({ waste, open, onClose, onSuccess }: Transfer
 
         {/* Sender role warning */}
         {senderRole && !senderCanTransfer && (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>Manufacturers cannot transfer waste items.</span>
           </div>
@@ -220,10 +224,11 @@ export function TransferWasteModal({ waste, open, onClose, onSuccess }: Transfer
               disabled={isPending || !senderCanTransfer}
               className={cn(addressError && 'border-destructive focus-visible:ring-destructive')}
               aria-describedby={addressError ? 'recipient-error' : undefined}
+              autoFocus
               required
             />
             {addressError && (
-              <p id="recipient-error" className="text-xs text-destructive">
+              <p id="recipient-error" role="alert" aria-live="assertive" className="text-xs text-destructive">
                 {addressError}
               </p>
             )}
@@ -251,7 +256,11 @@ export function TransferWasteModal({ waste, open, onClose, onSuccess }: Transfer
 
           {/* Transaction error */}
           {txError && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{txError}</span>
             </div>

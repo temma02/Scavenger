@@ -130,7 +130,7 @@ export function CreateIncentiveModal({ open, onClose, onSuccess }: Props) {
               value={String(wasteType)}
               onValueChange={(v) => setWasteType(Number(v) as WasteType)}
             >
-              <SelectTrigger id="waste-type-trigger" className="w-full">
+              <SelectTrigger id="waste-type-trigger" className="w-full" autoFocus>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -176,7 +176,7 @@ export function CreateIncentiveModal({ open, onClose, onSuccess }: Props) {
           </div>
 
           {estimatedCoverage && (
-            <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
+            <div role="status" aria-live="polite" className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
               <p className="font-medium">Estimated coverage</p>
               <p className="mt-0.5 text-muted-foreground">
                 This budget covers approximately{' '}
@@ -188,7 +188,7 @@ export function CreateIncentiveModal({ open, onClose, onSuccess }: Props) {
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" aria-live="assertive" className="text-sm text-destructive">
               {error}
             </p>
           )}

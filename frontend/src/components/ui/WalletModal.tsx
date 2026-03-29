@@ -41,7 +41,10 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
               {isConnected ? 'Wallet Connected' : 'Connect Wallet'}
             </Dialog.Title>
             <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground" aria-label="Close">
+              <button
+                className="rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Close"
+              >
                 <X size={18} />
               </button>
             </Dialog.Close>
@@ -57,7 +60,11 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <p role="alert" aria-live="assertive" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
               {WALLETS.map((wallet) => {
                 const supported = wallet.id === 'freighter';
                 const notInstalled = supported && !isInstalled;

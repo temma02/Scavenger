@@ -87,12 +87,15 @@ export function SettingsPage() {
                 type="button"
                 onClick={copyAddress}
                 aria-label="Copy address"
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {copied
                   ? <Check className="h-4 w-4 text-green-500" />
                   : <Copy className="h-4 w-4" />}
               </button>
+              <span role="status" aria-live="polite" className="sr-only">
+                {copied ? 'Address copied to clipboard.' : ''}
+              </span>
             </div>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
@@ -152,7 +155,7 @@ export function SettingsPage() {
                 type="button"
                 onClick={() => handleNetworkChange(net)}
                 className={cn(
-                  'rounded-md border px-3 py-2 text-xs font-medium transition-colors',
+                  'rounded-md border px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   config.network === net
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground'
