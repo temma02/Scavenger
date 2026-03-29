@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useAppTitle } from '@/hooks/useAppTitle'
 import { useCollectorDashboard } from '@/hooks/useCollectorDashboard'
 import { useWallet } from '@/context/WalletContext'
@@ -38,6 +39,7 @@ function WasteRow({ material, onTransfer }: { material: Material; onTransfer: (i
 export function CollectorDashboardPage() {
   useAppTitle('Collector Dashboard')
   const { address } = useWallet()
+  const navigate = useNavigate()
   const {
     tokenBalance,
     pendingTransfers,
@@ -50,8 +52,7 @@ export function CollectorDashboardPage() {
   } = useCollectorDashboard()
 
   const handleTransfer = (wasteId: number) => {
-    // Navigate to transfer page with pre-filled waste ID
-    window.location.href = `/transfer?wasteId=${wasteId}`
+    navigate(`/wastes?transfer=${wasteId}`)
   }
 
   if (!address) {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Eye, ArrowRightLeft, CheckCircle, Loader2, Recycle } from 'lucide-react'
 import { useWasteList } from '@/hooks/useWasteList'
 import { Material, WasteType } from '@/api/types'
@@ -69,6 +69,19 @@ export function WasteListPage() {
   const [transferTarget, setTransferTarget] = useState<Material | null>(null)
   const [toAddress, setToAddress] = useState('')
   const [transferring, setTransferring] = useState(false)
+
+  // Auto-open transfer dialog when navigated from collector dashboard (?transfer=<id>)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const transferId = params.get('transfer')
+    if (transferId && wastes.length > 0) {
+      const target = wastes.find((w) => String(w.id) === transferId)
+      if (target) {
+        setTransferTarget(target)
+        setToAddress('')
+      }
+    }
+  }, [wastes])
 
   const filtered = wastes.filter((w) => {
     if (search && !String(w.id).includes(search.trim())) return false
