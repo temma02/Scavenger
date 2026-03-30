@@ -1,0 +1,96 @@
+name: Smoke Tests
+
+on:
+  workflow_call:
+    inputs:
+      api_url:
+        required: true
+        type: string
+        description: 'API URL to test'
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'API URL to test'
+        required: false
+        type: string
+        default: 'https://api-testnet.scavenger.app'
+
+jobs:
+  smoke-tests:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Health check API
+        run: |
+          API_URL="${{ inputs.api_url || 'https://api-testnet.scavenger.app' }}"
+          echo "Testing API health at: $API_URL"
+          
+          # Retry logic
+          for i in {1..5}; do
+            if curl -f "$API_URL/health" 2>/dev/null; then
+              echo "✅ API is healthy"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          
+          echo "❌ API health check failed"
+          exit 1
+
+      - name: Test frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Validate HTML output
+        working-directory: frontend
+        run: |
+          if [ -f dist/index.html ]; then
+            echo "✅ HTML file generated"
+            head -20 dist/index.html
+          else
+            echo "❌ HTML file not found"
+            exit 1
+          fi
+
+      - name: Check for common issues
+        working-directory: frontend
+        run: |
+          echo "Checking build output..."
+          test -d dist || { echo "dist folder missing"; exit 1; }
+          test -f dist/index.html || { echo "index.html missing"; exit 1; }
+          echo "✅ Build artifacts verified"
+
+      - name: Upload smoke test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-logs
+          path: frontend/dist/
+          retention-days: 7
+
+      - name: Report test status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ All smoke tests passed"
+          else
+            echo "❌ Smoke tests failed"
+            exit 1
+          fi

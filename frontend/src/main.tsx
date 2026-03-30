@@ -10,7 +10,30 @@ import { ContractProvider } from '@/context/ContractContext'
 import { ThemeProvider, useTheme } from '@/context/ThemeProvider'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/lib/contractErrors'
+import { initWebVitals } from '@/lib/webVitals'
 import './index.css'
+
+// Initialize Web Vitals monitoring
+initWebVitals((metric) => {
+  // Log to console in development
+  if (import.meta.env.DEV) {
+    console.debug(`[Web Vital] ${metric.name}: ${metric.value.toFixed(0)}ms (${metric.rating})`)
+  }
+  
+  // Optionally send to analytics endpoint in production
+  if (!import.meta.env.DEV) {
+    try {
+      navigator.sendBeacon('/api/metrics', JSON.stringify({
+        metric: metric.name,
+        value: metric.value,
+        rating: metric.rating,
+        timestamp: new Date().toISOString(),
+      }))
+    } catch (error) {
+      // Silently fail in production
+    }
+  }
+})
 
 // Create a client
 const queryClient = new QueryClient({
