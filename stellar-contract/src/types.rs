@@ -1325,3 +1325,15 @@ pub struct GlobalMetrics {
     pub total_tokens_earned: u128,
 }
 
+/// Seasonal reward multiplier stored as basis points (100 = 1x, 150 = 1.5x, 500 = 5x max).
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SeasonalMultiplier {
+    /// Multiplier in basis points (e.g. 150 = 1.5x). Max 500 (5x).
+    pub multiplier: u32,
+    /// Unix timestamp when the multiplier becomes active.
+    pub start: u64,
+    /// Unix timestamp when the multiplier expires.
+    pub end: u64,
+}
+

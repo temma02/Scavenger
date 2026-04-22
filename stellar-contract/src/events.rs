@@ -115,3 +115,11 @@ pub fn emit_contract_paused(env: &Env, admin: &Address) {
 pub fn emit_contract_unpaused(env: &Env, admin: &Address) {
     env.events().publish((symbol_short!("unpaused"),), admin);
 }
+
+/// Emit event when a seasonal multiplier is set by admin.
+pub fn emit_seasonal_multiplier_set(env: &Env, multiplier: u32, start: u64, end: u64) {
+    env.events().publish(
+        (symbol_short!("seas_mul"),),
+        (multiplier, start, end),
+    );
+}

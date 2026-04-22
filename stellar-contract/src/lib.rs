@@ -8,8 +8,8 @@ mod test_transfer_path_validation;
 
 pub use errors::Error;
 pub use types::{
-    GlobalMetrics, Incentive, Material, ParticipantRole, RecyclingStats, TransferItemType,
-    TransferRecord, TransferStatus, Waste, WasteTransfer, WasteType,
+    GlobalMetrics, Incentive, Material, ParticipantRole, RecyclingStats, SeasonalMultiplier,
+    TransferItemType, TransferRecord, TransferStatus, Waste, WasteTransfer, WasteType,
 };
 
 use soroban_sdk::{
@@ -27,6 +27,7 @@ const REENTRANCY_GUARD: Symbol = symbol_short!("RE_GUARD");
 const TOKEN_ADDR: Symbol = symbol_short!("TKN_ADDR");
 const PART_INDEX: Symbol = symbol_short!("PART_IDX");
 const PAUSED: Symbol = symbol_short!("PAUSED");
+const SEASONAL_MUL: Symbol = symbol_short!("SEAS_MUL");
 
 /// Maximum allowed waste weight per submission (1 000 000 kg in grams).
 const MAX_WASTE_WEIGHT: u128 = 1_000_000_000;
@@ -497,6 +498,34 @@ impl ScavengerContract {
     /// `Some(Address)` if set via [`set_token_address`], `None` otherwise.
     pub fn get_token_address(env: Env) -> Option<Address> {
         env.storage().instance().get(&TOKEN_ADDR)
+    }
+
+    /// Set a seasonal reward multiplier (admin only).
+    ///
+    /// The multiplier is expressed in basis points: 100 = 1x, 150 = 1.5x, 500 = 5x (max).
+    /// It is active for rewards distributed between `start` and `end` (inclusive, Unix timestamps).
+    ///
+    /// # Errors
+    /// - Panics if `multiplier` is 0, < 100, or > 500.
+    /// - Panics if `start >= end`.
+    pub fn set_seasonal_multiplier(env: Env, admin: Address, multiplier: u32, start: u64, end: u64) {
+        Self::require_admin(&env, &admin);
+        assert!(multiplier >= 100 && multiplier <= 500, "Multiplier must be between 100 and 500 basis points");
+        assert!(start < end, "start must be before end");
+        let seasonal = SeasonalMultiplier { multiplier, start, end };
+        env.storage().instance().set(&SEASONAL_MUL, &seasonal);
+        events::emit_seasonal_multiplier_set(&env, multiplier, start, end);
+    }
+
+    /// Return the active seasonal multiplier in basis points, or 100 (1x) if none is active.
+    pub fn get_current_multiplier(env: Env) -> u32 {
+        let now = env.ledger().timestamp();
+        if let Some(s) = env.storage().instance().get::<_, SeasonalMultiplier>(&SEASONAL_MUL) {
+            if now >= s.start && now <= s.end {
+                return s.multiplier;
+            }
+        }
+        100
     }
 
     /// Manually reward tokens to a registered recipient.
@@ -2786,7 +2815,9 @@ impl ScavengerContract {
         assert!(incentive.active, "Incentive not active");
 
         let weight_kg = material.weight / 1000;
-        let total_reward = (incentive.reward_points as i128) * (weight_kg as i128);
+        let base_reward = (incentive.reward_points as i128) * (weight_kg as i128);
+        let multiplier = Self::get_current_multiplier(env.clone()) as i128;
+        let total_reward = (base_reward * multiplier) / 100;
         assert!(
             (total_reward as u64) <= incentive.remaining_budget,
             "Insufficient incentive budget"
