@@ -123,3 +123,17 @@ pub fn emit_seasonal_multiplier_set(env: &Env, multiplier: u32, start: u64, end:
         (multiplier, start, end),
     );
 }
+
+/// Emit event when a waste item's processing status changes.
+pub fn emit_processing_status_changed(
+    env: &Env,
+    waste_id: u128,
+    new_status: u32,
+    updated_by: &Address,
+    timestamp: u64,
+) {
+    env.events().publish(
+        (symbol_short!("proc_chg"), waste_id),
+        (new_status, updated_by, timestamp),
+    );
+}

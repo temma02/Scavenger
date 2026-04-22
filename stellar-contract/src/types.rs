@@ -482,6 +482,44 @@ impl Material {
     }
 }
 
+/// Processing stages a waste item moves through in the supply chain.
+/// Stages must progress forward only (Collected → Sorted → Processed → Recycled → Manufactured).
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProcessingStatus {
+    Collected = 0,
+    Sorted = 1,
+    Processed = 2,
+    Recycled = 3,
+    Manufactured = 4,
+}
+
+impl ProcessingStatus {
+    pub fn to_u32(self) -> u32 {
+        self as u32
+    }
+
+    pub fn from_u32(v: u32) -> Option<Self> {
+        match v {
+            0 => Some(ProcessingStatus::Collected),
+            1 => Some(ProcessingStatus::Sorted),
+            2 => Some(ProcessingStatus::Processed),
+            3 => Some(ProcessingStatus::Recycled),
+            4 => Some(ProcessingStatus::Manufactured),
+            _ => None,
+        }
+    }
+}
+
+/// A single entry in a waste item's processing history.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProcessingRecord {
+    pub status: ProcessingStatus,
+    pub timestamp: u64,
+    pub updated_by: Address,
+}
+
 /// Represents a waste item in the recycling system
 /// This is the main struct that tracks waste throughout its lifecycle
 #[contracttype]
@@ -507,11 +545,16 @@ pub struct Waste {
     pub is_confirmed: bool,
     /// Address of the confirmer/verifier
     pub confirmer: Address,
+    /// Current processing stage
+    pub processing_status: ProcessingStatus,
+    /// Ordered history of processing stage changes
+    pub processing_history: soroban_sdk::Vec<ProcessingRecord>,
 }
 
 impl Waste {
     /// Creates a new Waste instance with all fields
     pub fn new(
+        env: &soroban_sdk::Env,
         waste_id: u128,
         waste_type: WasteType,
         weight: u128,
@@ -523,6 +566,13 @@ impl Waste {
         is_confirmed: bool,
         confirmer: Address,
     ) -> Self {
+        let initial_record = ProcessingRecord {
+            status: ProcessingStatus::Collected,
+            timestamp: env.ledger().timestamp(),
+            updated_by: current_owner.clone(),
+        };
+        let mut history = soroban_sdk::Vec::new(env);
+        history.push_back(initial_record);
         Self {
             waste_id,
             waste_type,
@@ -534,6 +584,8 @@ impl Waste {
             is_active,
             is_confirmed,
             confirmer,
+            processing_status: ProcessingStatus::Collected,
+            processing_history: history,
         }
     }
 
@@ -697,8 +749,15 @@ impl WasteBuilder {
     }
 
     /// Builds the Waste instance
-    pub fn build(self) -> Waste {
+    pub fn build(self, env: &soroban_sdk::Env) -> Waste {
         let confirmer = self.confirmer.unwrap_or_else(|| self.current_owner.clone());
+        let initial_record = ProcessingRecord {
+            status: ProcessingStatus::Collected,
+            timestamp: env.ledger().timestamp(),
+            updated_by: self.current_owner.clone(),
+        };
+        let mut history = soroban_sdk::Vec::new(env);
+        history.push_back(initial_record);
         Waste {
             waste_id: self.waste_id,
             waste_type: self.waste_type,
@@ -710,6 +769,8 @@ impl WasteBuilder {
             is_active: self.is_active,
             is_confirmed: self.is_confirmed,
             confirmer,
+            processing_status: ProcessingStatus::Collected,
+            processing_history: history,
         }
     }
 }

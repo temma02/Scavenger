@@ -8,8 +8,9 @@ mod test_transfer_path_validation;
 
 pub use errors::Error;
 pub use types::{
-    GlobalMetrics, Incentive, Material, ParticipantRole, RecyclingStats, SeasonalMultiplier,
-    TransferItemType, TransferRecord, TransferStatus, Waste, WasteTransfer, WasteType,
+    GlobalMetrics, Incentive, Material, ParticipantRole, ProcessingRecord, ProcessingStatus,
+    RecyclingStats, SeasonalMultiplier, TransferItemType, TransferRecord, TransferStatus, Waste,
+    WasteTransfer, WasteType,
 };
 
 use soroban_sdk::{
@@ -1667,6 +1668,7 @@ impl ScavengerContract {
         let timestamp = env.ledger().timestamp();
 
         let waste = types::Waste::new(
+            &env,
             waste_id,
             waste_type,
             weight,
@@ -1718,6 +1720,74 @@ impl ScavengerContract {
             .instance()
             .get(&("participant_wastes", participant))
             .unwrap_or(Vec::new(&env))
+    }
+
+    /// Update the processing status of a v2 waste item.
+    ///
+    /// Only the current owner may call this. Status must advance forward
+    /// (Collected → Sorted → Processed → Recycled → Manufactured).
+    ///
+    /// # Panics
+    /// - `"Waste not found"` if the waste ID does not exist.
+    /// - `"Only current owner can update processing status"` if caller is not the owner.
+    /// - `"Status must progress forward"` if new status is not strictly greater.
+    pub fn update_processing_status(
+        env: Env,
+        waste_id: u128,
+        caller: Address,
+        new_status: ProcessingStatus,
+    ) -> types::Waste {
+        caller.require_auth();
+        Self::require_not_paused(&env);
+
+        let mut waste: types::Waste = env
+            .storage()
+            .instance()
+            .get(&("waste_v2", waste_id))
+            .expect("Waste not found");
+
+        assert!(waste.current_owner == caller, "Only current owner can update processing status");
+        assert!(
+            new_status.to_u32() > waste.processing_status.to_u32(),
+            "Status must progress forward"
+        );
+
+        let timestamp = env.ledger().timestamp();
+        waste.processing_status = new_status;
+        waste.processing_history.push_back(ProcessingRecord {
+            status: new_status,
+            timestamp,
+            updated_by: caller.clone(),
+        });
+
+        env.storage().instance().set(&("waste_v2", waste_id), &waste);
+        events::emit_processing_status_changed(&env, waste_id, new_status.to_u32(), &caller, timestamp);
+
+        waste
+    }
+
+    /// Return all v2 waste IDs whose current processing status matches `status`.
+    ///
+    /// Scans the global waste ID counter and checks each stored waste item.
+    pub fn get_wastes_by_status(env: Env, status: ProcessingStatus) -> Vec<u128> {
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&("waste_count",))
+            .unwrap_or(0);
+        let mut result = Vec::new(&env);
+        for id in 1u128..=(count as u128) {
+            if let Some(w) = env
+                .storage()
+                .instance()
+                .get::<_, types::Waste>(&("waste_v2", id))
+            {
+                if w.processing_status == status {
+                    result.push_back(id);
+                }
+            }
+        }
+        result
     }
 
     /// Transfer a v2 waste item between participants with location tracking.
@@ -2027,6 +2097,7 @@ impl ScavengerContract {
         let timestamp = env.ledger().timestamp();
 
         let waste = types::Waste::new(
+            &env,
             waste_id,
             waste_type,
             0,
