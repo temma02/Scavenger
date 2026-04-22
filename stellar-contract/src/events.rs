@@ -137,3 +137,17 @@ pub fn emit_processing_status_changed(
         (new_status, updated_by, timestamp),
     );
 }
+
+/// Emit event when carbon credits are earned on material verification.
+pub fn emit_carbon_credits_earned(
+    env: &Env,
+    participant: &Address,
+    waste_type: crate::types::WasteType,
+    weight_grams: u128,
+    credits: u128,
+) {
+    env.events().publish(
+        (symbol_short!("cc_earn"), participant),
+        (waste_type, weight_grams, credits),
+    );
+}

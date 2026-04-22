@@ -356,12 +356,16 @@ pub enum WasteType {
     Metal = 3,
     /// Glass waste - bottles, jars, containers
     Glass = 4,
+    /// Organic waste - food scraps, yard waste
+    Organic = 5,
+    /// Electronic waste - computers, phones, batteries
+    Electronic = 6,
 }
 
 impl WasteType {
     /// Validates if the value is a valid WasteType variant
     pub fn is_valid(value: u32) -> bool {
-        matches!(value, 0..=4)
+        matches!(value, 0..=6)
     }
 
     /// Converts a u32 to a WasteType
@@ -373,6 +377,8 @@ impl WasteType {
             2 => Some(WasteType::Plastic),
             3 => Some(WasteType::Metal),
             4 => Some(WasteType::Glass),
+            5 => Some(WasteType::Organic),
+            6 => Some(WasteType::Electronic),
             _ => None,
         }
     }
@@ -390,6 +396,23 @@ impl WasteType {
             WasteType::Plastic => "PLASTIC",
             WasteType::Metal => "METAL",
             WasteType::Glass => "GLASS",
+            WasteType::Organic => "ORGANIC",
+            WasteType::Electronic => "ELECTRONIC",
+        }
+    }
+
+    /// Returns the carbon credit rate in milligrams of CO2 equivalent per gram of waste.
+    /// Rates (gCO2e/g): Plastic=2.5, Paper=1.8, Metal=3.2, Glass=0.8, Organic=0.5, Electronic=4.0
+    /// Stored as fixed-point * 1000 to avoid floats: e.g. 2500 = 2.5 gCO2e/g
+    pub fn carbon_credit_rate_milli(&self) -> u128 {
+        match self {
+            WasteType::Paper => 1800,
+            WasteType::PetPlastic => 2500,
+            WasteType::Plastic => 2500,
+            WasteType::Metal => 3200,
+            WasteType::Glass => 800,
+            WasteType::Organic => 500,
+            WasteType::Electronic => 4000,
         }
     }
 
@@ -400,7 +423,7 @@ impl WasteType {
 
     /// Checks if the waste type is biodegradable
     pub fn is_biodegradable(&self) -> bool {
-        matches!(self, WasteType::Paper)
+        matches!(self, WasteType::Paper | WasteType::Organic)
     }
 
     /// Checks if the waste type is infinitely recyclable
@@ -475,6 +498,8 @@ impl Material {
             WasteType::Plastic => 2,
             WasteType::Metal => 5,
             WasteType::Glass => 2,
+            WasteType::Organic => 1,
+            WasteType::Electronic => 6,
         };
 
         // Points = (weight in kg) * multiplier * 10
@@ -790,12 +815,16 @@ pub struct RecyclingStats {
     pub total_weight: u64,
     /// Total reward points earned
     pub total_points: u64,
+    /// Total carbon credits earned (grams of CO2 equivalent)
+    pub carbon_credits_earned: u128,
     /// Number of materials by waste type
     pub paper_count: u64,
     pub pet_plastic_count: u64,
     pub plastic_count: u64,
     pub metal_count: u64,
     pub glass_count: u64,
+    pub organic_count: u64,
+    pub electronic_count: u64,
 }
 
 impl RecyclingStats {
@@ -807,11 +836,14 @@ impl RecyclingStats {
             verified_submissions: 0,
             total_weight: 0,
             total_points: 0,
+            carbon_credits_earned: 0,
             paper_count: 0,
             pet_plastic_count: 0,
             plastic_count: 0,
             metal_count: 0,
             glass_count: 0,
+            organic_count: 0,
+            electronic_count: 0,
         }
     }
 
@@ -827,14 +859,17 @@ impl RecyclingStats {
             WasteType::Plastic => self.plastic_count += 1,
             WasteType::Metal => self.metal_count += 1,
             WasteType::Glass => self.glass_count += 1,
+            WasteType::Organic => self.organic_count += 1,
+            WasteType::Electronic => self.electronic_count += 1,
         }
     }
 
-    /// Records a material verification
+    /// Records a material verification and updates carbon credits
     pub fn record_verification(&mut self, material: &Material) {
         if material.verified {
             self.verified_submissions += 1;
             self.total_points += material.calculate_reward_points();
+            self.carbon_credits_earned += calculate_carbon_credits(material.waste_type, material.weight as u128);
         }
     }
 
@@ -855,6 +890,8 @@ impl RecyclingStats {
             (WasteType::Plastic, self.plastic_count),
             (WasteType::Metal, self.metal_count),
             (WasteType::Glass, self.glass_count),
+            (WasteType::Organic, self.organic_count),
+            (WasteType::Electronic, self.electronic_count),
         ];
 
         counts
@@ -882,6 +919,12 @@ impl RecyclingStats {
     pub fn is_verified_contributor(&self) -> bool {
         self.verification_rate() >= 80
     }
+}
+
+/// Calculate carbon credits (grams of CO2 equivalent) for a given waste type and weight in grams.
+/// Formula: credits = weight_grams * rate_milli / 1000
+pub fn calculate_carbon_credits(waste_type: WasteType, weight_grams: u128) -> u128 {
+    weight_grams * waste_type.carbon_credit_rate_milli() / 1000
 }
 
 #[cfg(test)]
@@ -1178,6 +1221,8 @@ mod waste_type_tests {
         assert_eq!(WasteType::Plastic as u32, 2);
         assert_eq!(WasteType::Metal as u32, 3);
         assert_eq!(WasteType::Glass as u32, 4);
+        assert_eq!(WasteType::Organic as u32, 5);
+        assert_eq!(WasteType::Electronic as u32, 6);
     }
 
     #[test]
@@ -1187,7 +1232,9 @@ mod waste_type_tests {
         assert!(WasteType::is_valid(2));
         assert!(WasteType::is_valid(3));
         assert!(WasteType::is_valid(4));
-        assert!(!WasteType::is_valid(5));
+        assert!(WasteType::is_valid(5));
+        assert!(WasteType::is_valid(6));
+        assert!(!WasteType::is_valid(7));
         assert!(!WasteType::is_valid(999));
     }
 
@@ -1198,7 +1245,9 @@ mod waste_type_tests {
         assert_eq!(WasteType::from_u32(2), Some(WasteType::Plastic));
         assert_eq!(WasteType::from_u32(3), Some(WasteType::Metal));
         assert_eq!(WasteType::from_u32(4), Some(WasteType::Glass));
-        assert_eq!(WasteType::from_u32(5), None);
+        assert_eq!(WasteType::from_u32(5), Some(WasteType::Organic));
+        assert_eq!(WasteType::from_u32(6), Some(WasteType::Electronic));
+        assert_eq!(WasteType::from_u32(7), None);
         assert_eq!(WasteType::from_u32(999), None);
     }
 
@@ -1209,6 +1258,8 @@ mod waste_type_tests {
         assert_eq!(WasteType::Plastic.to_u32(), 2);
         assert_eq!(WasteType::Metal.to_u32(), 3);
         assert_eq!(WasteType::Glass.to_u32(), 4);
+        assert_eq!(WasteType::Organic.to_u32(), 5);
+        assert_eq!(WasteType::Electronic.to_u32(), 6);
     }
 
     #[test]
@@ -1218,16 +1269,19 @@ mod waste_type_tests {
         assert_eq!(WasteType::Plastic.as_str(), "PLASTIC");
         assert_eq!(WasteType::Metal.as_str(), "METAL");
         assert_eq!(WasteType::Glass.as_str(), "GLASS");
+        assert_eq!(WasteType::Organic.as_str(), "ORGANIC");
+        assert_eq!(WasteType::Electronic.as_str(), "ELECTRONIC");
     }
 
     #[test]
     fn test_waste_type_display() {
-        // Test Display trait by converting to string representation
         assert_eq!(WasteType::Paper.as_str(), "PAPER");
         assert_eq!(WasteType::PetPlastic.as_str(), "PETPLASTIC");
         assert_eq!(WasteType::Plastic.as_str(), "PLASTIC");
         assert_eq!(WasteType::Metal.as_str(), "METAL");
         assert_eq!(WasteType::Glass.as_str(), "GLASS");
+        assert_eq!(WasteType::Organic.as_str(), "ORGANIC");
+        assert_eq!(WasteType::Electronic.as_str(), "ELECTRONIC");
     }
 
     #[test]
@@ -1246,6 +1300,8 @@ mod waste_type_tests {
         assert!(!WasteType::Plastic.is_biodegradable());
         assert!(!WasteType::Metal.is_biodegradable());
         assert!(!WasteType::Glass.is_biodegradable());
+        assert!(WasteType::Organic.is_biodegradable());
+        assert!(!WasteType::Electronic.is_biodegradable());
     }
 
     #[test]
@@ -1279,6 +1335,8 @@ mod waste_type_tests {
             WasteType::Plastic,
             WasteType::Metal,
             WasteType::Glass,
+            WasteType::Organic,
+            WasteType::Electronic,
         ];
 
         for (i, waste_type) in types.iter().enumerate() {
@@ -1384,6 +1442,8 @@ pub struct GlobalMetrics {
     pub total_wastes_count: u64,
     /// Total amount of tokens earned across all participants
     pub total_tokens_earned: u128,
+    /// Total carbon credits earned across all participants (grams CO2 equivalent)
+    pub total_carbon_credits: u128,
 }
 
 /// Seasonal reward multiplier stored as basis points (100 = 1x, 150 = 1.5x, 500 = 5x max).

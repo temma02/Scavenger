@@ -12,6 +12,7 @@ pub use types::{
     RecyclingStats, SeasonalMultiplier, TransferItemType, TransferRecord, TransferStatus, Waste,
     WasteTransfer, WasteType,
 };
+pub use types::calculate_carbon_credits;
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env, String, Symbol, Vec,
@@ -29,6 +30,7 @@ const TOKEN_ADDR: Symbol = symbol_short!("TKN_ADDR");
 const PART_INDEX: Symbol = symbol_short!("PART_IDX");
 const PAUSED: Symbol = symbol_short!("PAUSED");
 const SEASONAL_MUL: Symbol = symbol_short!("SEAS_MUL");
+const TOTAL_CARBON: Symbol = symbol_short!("TOT_CRBN");
 
 /// Maximum allowed waste weight per submission (1 000 000 kg in grams).
 const MAX_WASTE_WEIGHT: u128 = 1_000_000_000;
@@ -2500,6 +2502,14 @@ impl ScavengerContract {
             .instance()
             .set(&("stats", material.submitter.clone()), &stats);
 
+        // Update global carbon credits counter
+        let credits = types::calculate_carbon_credits(material.waste_type, material.weight as u128);
+        let total_carbon: u128 = env.storage().instance().get(&TOTAL_CARBON).unwrap_or(0);
+        env.storage().instance().set(&TOTAL_CARBON, &(total_carbon + credits));
+
+        // Emit carbon credits earned event
+        events::emit_carbon_credits_earned(&env, &material.submitter, material.waste_type, material.weight as u128, credits);
+
         // Distribute token rewards using the helper which also emits TOKENS_REWARDED events
         Self::_reward_tokens(&env, material_id, tokens_earned as u128);
 
@@ -2566,6 +2576,14 @@ impl ScavengerContract {
                     .instance()
                     .set(&("stats", material.submitter.clone()), &stats);
 
+                // Update global carbon credits counter
+                let credits = types::calculate_carbon_credits(material.waste_type, material.weight as u128);
+                let total_carbon: u128 = env.storage().instance().get(&TOTAL_CARBON).unwrap_or(0);
+                env.storage().instance().set(&TOTAL_CARBON, &(total_carbon + credits));
+
+                // Emit carbon credits earned event
+                events::emit_carbon_credits_earned(&env, &material.submitter, material.waste_type, material.weight as u128, credits);
+
                 // Distribute token rewards using the helper which also emits TOKENS_REWARDED events
                 Self::_reward_tokens(&env, material_id, tokens_earned as u128);
 
@@ -2583,6 +2601,23 @@ impl ScavengerContract {
     /// at least one material, `None` otherwise.
     pub fn get_stats(env: Env, participant: Address) -> Option<RecyclingStats> {
         env.storage().instance().get(&("stats", participant))
+    }
+
+    /// Calculate carbon credits for a given waste type and weight in grams.
+    /// Returns grams of CO2 equivalent.
+    pub fn calculate_carbon_credits(waste_type: WasteType, weight_grams: u128) -> u128 {
+        types::calculate_carbon_credits(waste_type, weight_grams)
+    }
+
+    /// Get total carbon credits earned across all participants.
+    pub fn get_total_carbon_credits(env: Env) -> u128 {
+        env.storage().instance().get(&TOTAL_CARBON).unwrap_or(0)
+    }
+
+    /// Get carbon credits earned by a specific participant.
+    pub fn get_participant_carbon_credits(env: Env, participant: Address) -> u128 {
+        let stats: Option<RecyclingStats> = env.storage().instance().get(&("stats", participant));
+        stats.map(|s| s.carbon_credits_earned).unwrap_or(0)
     }
 
     /// Get global supply-chain statistics.
@@ -2829,9 +2864,15 @@ impl ScavengerContract {
             .instance()
             .get(&TOTAL_TOKENS)
             .unwrap_or(0);
+        let total_carbon_credits: u128 = env
+            .storage()
+            .instance()
+            .get(&TOTAL_CARBON)
+            .unwrap_or(0);
         types::GlobalMetrics {
             total_wastes_count,
             total_tokens_earned,
+            total_carbon_credits,
         }
     }
 

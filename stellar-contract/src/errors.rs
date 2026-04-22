@@ -172,6 +172,7 @@ pub enum Error {
     /// (31) Insufficient budget for the reward.
     InsufficientBudget = 31,
 
+    
     /// (32) Multiplier exceeds the maximum allowed value (500 basis points = 5x).
     InvalidMultiplier = 32,
 }
